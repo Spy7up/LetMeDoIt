@@ -1,5 +1,6 @@
 <view class="launch" style="padding-top:{{statusBarHeight}}px">
   <view class="launch-main">
+    <image class="brand-mark" src="/images/logo.png" mode="aspectFill" />
     <view class="brand">让我做<view class="brand-dot"></view></view>
     <text class="slogan">别人让你做的小事，说一遍就够。</text>
 

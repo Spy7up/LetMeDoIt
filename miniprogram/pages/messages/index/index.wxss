@@ -15,6 +15,13 @@
   color: #576b95;
 }
 
+.wx-logo-img {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
 .wx-read {
   width: 12rpx;
   height: 12rpx;

@@ -46,6 +46,7 @@ letmedoit/
 │   └── images/icons/            # 图标（脚本生成，见 tools/gen-assets.js）
 ├── docs/                        # 产品与技术方案
 ├── prototype/                   # 8 屏高保真原型
+├── assets/logo/                 # Logo 源文件与各尺寸导出
 └── tools/                       # 图标生成、静态检查、运行时自检
 ```
 
@@ -113,8 +114,29 @@ node tools/gen-assets.js  # 重新生成图标（改了图标定义后执行）
 
 ---
 
-## 七、已知限制（v1.1 有意为之）
+## 七、Logo 与图标资源
 
+Logo 是**矢量绘制**的（不是 AI 生成的位图），保证从 1024px 到 28px 都清晰：
+
+- `assets/logo/icon.svg` —— 源文件，改颜色/比例直接改这里
+- `assets/logo/icon-1024.png` —— 上传小程序后台（也作为对外主图）
+- `assets/logo/icon-144.png` —— 小程序头像规格
+- `assets/logo/brand-board.png` —— 品牌板（尺寸阶梯、深/浅底、组合用法）
+- `miniprogram/images/logo.png` —— App 内使用（启动页、服务通知卡片头像）
+
+图形含义：**气泡 = 一句口头交代，对勾 = 做完了**。所以外轮廓是对话气泡而不是普通勾选框——这个产品的起点是微信里那句「帮我把衣服晾一下」。
+
+重新导出某一尺寸：
+
+```bash
+# 改完 icon.svg 后，用浏览器渲染（无第三方依赖）
+msedge --headless=old --screenshot=icon-512.png --window-size=512,512 \
+  "file:///<项目路径>/assets/logo/render.html?f=icon.svg&s=512"
+```
+
+界面里的小图标（tabBar、箭头、铃铛等）是另一套，由 `tools/gen-assets.js` 生成，见第六节。
+
+## 八、已知限制（v1.1 有意为之）
 - **数据不持久**：Mock 存在内存里，重启小程序即重置。这是为了演示时有新鲜数据。
 - **图片是本地临时路径**：完成任务选的图只存在当前会话，没有上传到 OSS。接后端时换成 `wx.uploadFile`。
 - **没有自定义组件**：v1 用 `app.wxss` 全局类 + WXML 复用，先把链路跑通；抽组件放在 M2。

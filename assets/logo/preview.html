@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>让我做 · Logo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#F2EEE9;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       color:#1E1B18;padding:44px;display:flex;justify-content:center}
+  .board{width:1240px;display:grid;grid-template-columns:380px 1fr;gap:24px}
+  .card{background:#fff;border-radius:24px;padding:28px;box-shadow:0 2px 12px rgba(60,40,20,.05)}
+  .cap{font-size:11px;color:#A69C93;letter-spacing:1.2px;font-weight:600;text-transform:uppercase;margin-bottom:18px}
+  .main{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+  .main img{width:300px;height:300px;border-radius:66px;box-shadow:0 22px 50px rgba(238,78,40,.26)}
+  .main p{font-size:12px;color:#6B625B;text-align:center;line-height:1.7}
+
+  .scale{display:flex;align-items:flex-end;gap:32px;padding:6px 0 4px}
+  .scale figure{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .scale img{border-radius:22%}
+  .scale span{font-size:10.5px;color:#A69C93;font-family:ui-monospace,monospace}
+
+  .dark{background:#241C17;border-radius:18px;padding:22px;display:flex;align-items:center;gap:28px}
+  .dark img{width:72px;height:72px;border-radius:18px}
+  .brand-bg{background:#FFF6F1;border:1px solid #FFE0D2;border-radius:18px;padding:22px;display:flex;align-items:center;gap:28px}
+  .brand-bg img{width:72px;height:72px;border-radius:18px;box-shadow:0 10px 24px rgba(0,0,0,.18)}
+
+  .lockup{display:flex;align-items:center;gap:16px}
+  .lockup img{width:56px;height:56px;border-radius:13px}
+  .lockup b{font-size:26px;letter-spacing:-.4px;display:block}
+  .lockup small{font-size:12px;color:#6B625B;display:block;margin-top:4px}
+
+  .notes{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px;margin-top:4px}
+  .note h4{font-size:12px;font-weight:700;margin-bottom:5px}
+  .note p{font-size:12px;color:#6B625B;line-height:1.75}
+
+  .sw{display:flex;gap:10px;margin-top:20px}
+  .sw div{flex:1}
+  .sw i{display:block;height:40px;border-radius:9px;margin-bottom:6px}
+  .sw span{font-size:10px;color:#A69C93;font-family:ui-monospace,monospace}
+</style></head>
+<body>
+<div class="board">
+
+  <div class="card main">
+    <div class="cap">主图标</div>
+    <img src="./icon-1024.png" alt="logo">
+    <p>一句话交代的事<br>变成一件做完的事</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <div class="card">
+      <div class="cap">尺寸阶梯</div>
+      <div class="scale">
+        <figure><img src="./icon-144.png" width="144" height="144"><span>144</span></figure>
+        <figure><img src="./icon-144.png" width="96" height="96"><span>96</span></figure>
+        <figure><img src="./icon-144.png" width="64" height="64"><span>64</span></figure>
+        <figure><img src="./icon-144.png" width="40" height="40"><span>40</span></figure>
+        <figure><img src="./icon-144.png" width="28" height="28"><span>28</span></figure>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cap">不同底色</div>
+      <div style="display:flex;gap:16px">
+        <div class="dark" style="flex:1">
+          <img src="./icon-1024.png">
+          <div style="color:#fff">
+            <b style="font-size:15px">夜灯下也清楚</b>
+            <small style="display:block;font-size:11.5px;color:rgba(255,255,255,.6);margin-top:5px">深色底不描边</small>
+          </div>
+        </div>
+        <div class="brand-bg" style="flex:1">
+          <img src="./icon-1024.png">
+          <div style="color:#241C17">
+            <b style="font-size:15px">浅色底（App 内）</b>
+            <small style="display:block;font-size:11.5px;color:#8C7A70;margin-top:5px">不需要再加描边</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cap">组合用法</div>
+      <div class="lockup">
+        <img src="./icon-1024.png">
+        <div>
+          <b>让我做</b>
+          <small>别人让你做的小事，说一遍就够</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cap">为什么是这个形状</div>
+      <div class="notes">
+        <div class="note"><h4>气泡 = 一句话交代</h4><p>产品起点是微信里那句「帮我把衣服晾一下」，所以外轮廓是对话气泡，不是普通勾选框。</p></div>
+        <div class="note"><h4>对勾 = 做完了</h4><p>委托的终点是完成。勾用品牌色而不是白色，让它在小尺寸下仍然是视觉主角。</p></div>
+      </div>
+      <div class="sw">
+        <div><i style="background:#FF6B4A"></i><span>#FF6B4A</span></div>
+        <div><i style="background:#EE4E28"></i><span>#EE4E28</span></div>
+        <div><i style="background:#F4572F"></i><span>#F4572F 勾</span></div>
+        <div><i style="background:#FFF2ED"></i><span>#FFF2ED</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body></html>

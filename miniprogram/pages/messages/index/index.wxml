@@ -16,7 +16,7 @@
       <view wx:for="{{list}}" wx:key="id">
         <view class="wx-card" data-id="{{item.id}}" data-taskid="{{item.taskId}}" bindtap="openTask">
           <view class="wx-head">
-            <view class="wx-logo">让</view>
+            <image class="wx-logo-img" src="/images/logo.png" mode="aspectFill" />
             <text>让我做</text>
             <text class="wx-read" wx:if="{{!item.read}}"></text>
             <text class="wx-more">···</text>

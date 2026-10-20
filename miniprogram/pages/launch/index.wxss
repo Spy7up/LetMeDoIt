@@ -15,6 +15,14 @@
   padding-bottom: 80rpx;
 }
 
+.brand-mark {
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 44rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 20rpx 48rpx rgba(238, 78, 40, 0.26);
+}
+
 .brand {
   font-size: 72rpx;
   font-weight: 700;
