@@ -1,0 +1,46 @@
+.set-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 36rpx 6rpx 26rpx;
+}
+
+.set-title {
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.set-sub {
+  font-size: 22rpx;
+  color: var(--ink3);
+}
+
+.set-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.set-desc {
+  font-size: 21rpx;
+  color: var(--ink3);
+  line-height: 1.4;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s;
+}
+
+.switch.on .switch-knob {
+  transform: translateX(36rpx);
+}

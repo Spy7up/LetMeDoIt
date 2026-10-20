@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "服务通知",
+  "navigationBarBackgroundColor": "#EDEDED",
+  "backgroundColor": "#EDEDED",
+  "enablePullDownRefresh": true
+}

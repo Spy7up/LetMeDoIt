@@ -1,0 +1,40 @@
+<view class="page">
+  <view class="page-body">
+    <view class="avatar-block">
+      <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image wx:if="{{avatarUrl}}" class="avatar-img" src="{{avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="av av-56" style="{{avatarStyle}}">{{initial}}</view>
+        <view class="avatar-mask">换</view>
+      </button>
+      <text class="avatar-tip">点头像从微信里选一张</text>
+    </view>
+
+    <view class="field">
+      <view class="flabel">怎么称呼你</view>
+      <input
+        class="input"
+        type="nickname"
+        placeholder="比如：小林"
+        placeholder-class="ph"
+        maxlength="20"
+        value="{{nickname}}"
+        bindinput="onNickname"
+        bindblur="onNickname"
+      />
+      <text class="counter">{{nickname.length}}/20</text>
+    </view>
+
+    <view class="tip">
+      <image class="ic-sm" src="/images/icons/bell-brand.png" />
+      <text>好友看到的是你的昵称和头像，改完立即生效</text>
+    </view>
+
+    <view class="actionbar-space"></view>
+  </view>
+
+  <view class="actionbar">
+    <view class="btn btn-primary btn-lg {{saving ? 'disabled' : ''}}" bindtap="save">
+      {{saving ? '保存中…' : '保存'}}
+    </view>
+  </view>
+</view>

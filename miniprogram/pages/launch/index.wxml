@@ -1,0 +1,28 @@
+<view class="launch" style="padding-top:{{statusBarHeight}}px">
+  <view class="launch-main">
+    <view class="brand">让我做<view class="brand-dot"></view></view>
+    <text class="slogan">别人让你做的小事，说一遍就够。</text>
+
+    <view class="launch-card">
+      <view class="lc-row">
+        <text class="lc-emoji">👵</text>
+        <text class="lc-text">妈妈说：阳台衣服晾一下</text>
+      </view>
+      <view class="lc-row">
+        <text class="lc-emoji">📌</text>
+        <text class="lc-text">变成一条任务，到点提醒你</text>
+      </view>
+      <view class="lc-row">
+        <text class="lc-emoji">✅</text>
+        <text class="lc-text">做完点一下，妈妈立刻知道</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="launch-foot">
+    <view class="btn btn-primary btn-lg" bindtap="login">
+      {{loading ? '正在登录…' : '微信一键登录'}}
+    </view>
+    <text class="launch-tip">{{tip || '登录后可以给好友派活，也能收到别人的委托'}}</text>
+  </view>
+</view>

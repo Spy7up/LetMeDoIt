@@ -1,0 +1,102 @@
+.invite {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 28rpx 0 24rpx;
+  padding: 24rpx 26rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(115deg, #ffe9e1, #fff6f1);
+  border: 1rpx solid #ffd9cc;
+}
+
+.invite-badge {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #ffe2d6;
+  color: #b4492a;
+  font-size: 24rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.invite-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.invite-title {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.invite-sub {
+  font-size: 21rpx;
+  color: #b4634a;
+}
+
+.invite-code {
+  margin-left: auto;
+  font-size: 26rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+  color: var(--brand-ink);
+  background: #fff;
+  border: 1rpx solid #ffd9cc;
+  border-radius: 14rpx;
+  padding: 10rpx 16rpx;
+}
+
+.sec-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  padding: 10rpx 4rpx 16rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--ink3);
+}
+
+.sec-num {
+  color: var(--ink3);
+  font-weight: 400;
+}
+
+.req-card {
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  box-shadow: 0 4rpx 20rpx rgba(60, 40, 20, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-bottom: 20rpx;
+}
+
+.req-top {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.req-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.req-actions .btn {
+  flex: 1;
+}
+
+.row-act {
+  font-size: 23rpx;
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  flex: 0 0 auto;
+}

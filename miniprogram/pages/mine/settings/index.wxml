@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="page-body">
+    <view class="set-head">
+      <text class="set-title">要收哪些通知</text>
+      <text class="set-sub">开启后，相关事情发生时会收到微信「服务通知」</text>
+    </view>
+
+    <view class="menu">
+      <view class="menu-row" wx:for="{{list}}" wx:key="key" data-key="{{item.key}}" data-index="{{index}}" bindtap="toggle">
+        <view class="set-item">
+          <text class="menu-label">{{item.title}}</text>
+          <text class="set-desc">{{item.desc}}</text>
+        </view>
+        <view class="switch {{item.on ? 'on' : ''}}">
+          <view class="switch-knob"></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="tip" style="margin-top:28rpx" bindtap="explain">
+      <image class="ic-sm" src="/images/icons/bell-brand.png" />
+      <text>微信的订阅是一次性的，点一下开一次，点这里看说明</text>
+    </view>
+  </view>
+</view>

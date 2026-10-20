@@ -1,0 +1,74 @@
+<view class="page">
+  <view class="page-body">
+    <view class="profile" wx:if="{{user}}" bindtap="goProfile">
+      <view class="av av-56" style="{{user.avatarStyle}}">
+        <image wx:if="{{user.avatarUrl}}" class="av-img" src="{{user.avatarUrl}}" mode="aspectFill" />
+        <text wx:else>{{user.initial}}</text>
+      </view>
+      <view class="profile-txt">
+        <text class="profile-name">{{user.nickname}}</text>
+        <text class="profile-code">邀请码 {{user.inviteCode}}</text>
+      </view>
+      <image class="chev" src="/images/icons/chevron-ghost.png" />
+    </view>
+
+    <view class="stats">
+      <view class="stat">
+        <text class="stat-num">{{stats.sentCount}}</text>
+        <text class="stat-label">我布置</text>
+      </view>
+      <view class="stat">
+        <text class="stat-num">{{stats.completedCount}}</text>
+        <text class="stat-label">我完成</text>
+      </view>
+      <view class="stat">
+        <text class="stat-num">{{rateText}}</text>
+        <text class="stat-label">准时率</text>
+      </view>
+      <view class="stat">
+        <text class="stat-num">{{stats.friendCount}}</text>
+        <text class="stat-label">好友</text>
+      </view>
+    </view>
+
+    <view class="menu">
+      <view class="menu-row" bindtap="goMessages">
+        <image class="ic" src="/images/icons/bell-ink.png" />
+        <text class="menu-label">服务通知</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <view class="menu-row" bindtap="goSettings">
+        <image class="ic" src="/images/icons/bell-ink.png" />
+        <text class="menu-label">提醒与订阅消息</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <view class="menu-row" bindtap="goProfile">
+        <image class="ic" src="/images/icons/me-ink.png" />
+        <text class="menu-label">编辑资料</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <view class="menu-row" bindtap="privacy">
+        <image class="ic" src="/images/icons/check-ink.png" />
+        <text class="menu-label">隐私与协议</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <view class="menu-row" bindtap="about">
+        <image class="ic" src="/images/icons/task-ink.png" />
+        <text class="menu-label">关于让我做</text>
+        <text class="menu-extra">{{version}}</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+    </view>
+
+    <view class="menu" style="margin-top:24rpx">
+      <view class="menu-row menu-center" bindtap="logout">
+        <text class="menu-logout">退出登录</text>
+      </view>
+    </view>
+
+    <view class="foot">
+      <text class="foot-line">让我做 {{version}}</text>
+      <text class="foot-line">别人让你做的小事，说一遍就够</text>
+    </view>
+  </view>
+</view>

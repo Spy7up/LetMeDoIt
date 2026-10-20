@@ -1,0 +1,47 @@
+.f-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+  padding: 56rpx 0 48rpx;
+}
+
+.f-name {
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.f-sub {
+  font-size: 23rpx;
+  color: var(--ink3);
+}
+
+.f-card {
+  padding: 0 26rpx;
+}
+
+.f-row {
+  display: flex;
+  align-items: center;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.f-row:last-child {
+  border-bottom: none;
+}
+
+.f-row-t {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.f-danger .f-row-t {
+  color: var(--danger);
+}
+
+.f-row .chev {
+  margin-left: auto;
+  width: 26rpx;
+  height: 26rpx;
+}

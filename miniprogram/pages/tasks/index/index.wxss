@@ -1,0 +1,32 @@
+.chips-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.chips {
+  display: inline-flex;
+}
+
+.list-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  padding-bottom: 200rpx;
+}
+
+.list-foot {
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--ink3);
+  padding: 24rpx 0 8rpx;
+}
+
+.actions-end {
+  margin-left: auto;
+}
+
+.sk-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
