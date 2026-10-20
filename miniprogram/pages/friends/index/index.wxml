@@ -61,6 +61,6 @@
       <view class="btn btn-ghost empty-btn" bindtap="goInvite">分享邀请</view>
     </view>
 
-    <view style="height:40rpx"></view>
+    <view class="tab-space"></view>
   </view>
 </view>

@@ -1,0 +1,92 @@
+/* 悬浮液态玻璃 tabBar
+ * 思路和首页 banner 一致：一层半透明白 + backdrop-filter 取材 + 边缘高光 + 极淡色源
+ * 不依赖 filter: blur()，低端机也有兜底
+ */
+
+.bar-wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  padding: 0 40rpx calc(24rpx + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.bar {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 112rpx;
+  padding: 0 14rpx;
+  border-radius: 56rpx;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.86) 0%,
+    rgba(255, 255, 255, 0.6) 52%,
+    rgba(255, 255, 255, 0.74) 100%
+  );
+  -webkit-backdrop-filter: blur(40rpx) saturate(180%);
+  backdrop-filter: blur(40rpx) saturate(180%);
+  border: 2rpx solid rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 2rpx 0 rgba(255, 255, 255, 0.98), inset 0 -2rpx 10rpx rgba(255, 255, 255, 0.5),
+    0 16rpx 40rpx rgba(110, 70, 50, 0.16), 0 2rpx 6rpx rgba(110, 70, 50, 0.05);
+}
+
+/* 折射色源：极淡的橘 + 薄荷 + 顶部一道白色折光，让玻璃有"东西可折" */
+.bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 56rpx;
+  pointer-events: none;
+  background: radial-gradient(170rpx 110rpx at 12% 132%, rgba(255, 107, 74, 0.18), rgba(255, 107, 74, 0) 72%),
+    radial-gradient(190rpx 120rpx at 88% 138%, rgba(31, 196, 155, 0.15), rgba(31, 196, 155, 0) 72%),
+    radial-gradient(220rpx 90rpx at 50% -34%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 70%);
+}
+
+.item {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+  transition: background 0.18s ease;
+}
+
+.item.on {
+  background: rgba(255, 107, 74, 0.13);
+}
+
+.item-icon {
+  width: 42rpx;
+  height: 42rpx;
+  transition: transform 0.18s ease;
+}
+
+.item.on .item-icon {
+  transform: translateY(-1rpx) scale(1.04);
+}
+
+.item-text {
+  font-size: 20rpx;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.4rpx;
+  color: #a69c93;
+}
+
+.item.on .item-text {
+  color: #d64c28;
+  font-weight: 600;
+}

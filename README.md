@@ -26,6 +26,7 @@ letmedoit/
 ├── project.config.json          # 工程配置（miniprogramRoot 指向 miniprogram/）
 ├── miniprogram/
 │   ├── app.js / app.json / app.wxss
+│   ├── custom-tab-bar/          # 悬浮液态玻璃 tabBar（原生 tabBar 不可改样式）
 │   ├── pages/
 │   │   ├── launch/              # 登录与授权
 │   │   ├── tasks/
@@ -79,6 +80,7 @@ const ENV = 'mock'   // 改成 'dev' 或 'prod'
 | 追加参与者（任务未开始前） | ✅ |
 | 服务通知中心：与微信卡片同构、未读数、已读 | ✅ |
 | 液态玻璃 banner：当日摘要、逾期提醒、在等你的人 | ✅ |
+| 悬浮液态玻璃 tabBar：胶囊悬浮、内容从底下穿过 | ✅ |
 | 订阅消息授权（发布 / 接受 / 完成时攒额度） | ⚠️ 逻辑已接，模板 id 待填（见第五节） |
 
 ---

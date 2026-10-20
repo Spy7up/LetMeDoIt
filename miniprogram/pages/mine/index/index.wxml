@@ -70,5 +70,7 @@
       <text class="foot-line">让我做 {{version}}</text>
       <text class="foot-line">别人让你做的小事，说一遍就够</text>
     </view>
+
+    <view class="tab-space"></view>
   </view>
 </view>

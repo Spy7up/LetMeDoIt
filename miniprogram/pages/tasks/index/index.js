@@ -45,6 +45,10 @@ Page({
   },
 
   onShow() {
+    // 自定义 tabBar 的选中态是每个页面独立的，进入时同步一次
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 })
+    }
     if (this.ready) this.refresh()
   },
 

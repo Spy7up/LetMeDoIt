@@ -646,7 +646,7 @@ image {
 .fab {
   position: fixed;
   right: 36rpx;
-  bottom: calc(140rpx + env(safe-area-inset-bottom));
+  bottom: calc(172rpx + env(safe-area-inset-bottom));
   width: 100rpx;
   height: 100rpx;
   border-radius: 50%;
@@ -656,6 +656,11 @@ image {
   justify-content: center;
   box-shadow: 0 16rpx 40rpx rgba(255, 107, 74, 0.42);
   z-index: 10;
+}
+
+/* 悬浮 tabBar 占位：tab 页内容末尾留出的空间 */
+.tab-space {
+  height: calc(200rpx + env(safe-area-inset-bottom));
 }
 
 /* ---------------- 表单 ---------------- */

@@ -135,6 +135,13 @@ console.log('\n[6] tabBar')
     if (p && !fs.existsSync(path.join(ROOT, p))) fail('tabBar 图标不存在 → ' + p)
   })
 })
+if (appJson.tabBar.custom) {
+  ;['js', 'json', 'wxml', 'wxss'].forEach((ext) => {
+    const f = path.join(ROOT, 'custom-tab-bar/index.' + ext)
+    if (!fs.existsSync(f)) fail('custom:true 但缺少 custom-tab-bar/index.' + ext)
+  })
+  ok('自定义 tabBar 组件齐全')
+}
 ok(appJson.tabBar.list.length + ' 个 tab')
 
 /* ---------- 6. 跳转目标 ---------- */
