@@ -6,7 +6,7 @@
  */
 const { http } = require('../utils/request')
 const adapt = require('./adapt')
-const { resolveDisplayStatus, STATUS_FILTER_QUERY } = require('../constants/task')
+const { resolveDisplayStatus, STATUS_FILTER_QUERY, TIME_RANGE_MAP } = require('../constants/task')
 const { apiTime } = require('../utils/format')
 
 const PAGE_SIZE = 10
@@ -30,13 +30,16 @@ function toIdList(ids) {
 
 /**
  * 任务列表
- * @param {{role:'assignee'|'creator', status?:string, cursor?:string, limit?:number}} params
+ * @param {{role:'assignee'|'creator', status?:string, timeRange?:string,
+ *          cursor?:string, limit?:number}} params
+ *        timeRange：all / today / last7 / last30，默认 all（不限）
  */
 function list(params) {
   const p = params || {}
   const limit = p.limit || PAGE_SIZE
   const offset = Number(String(p.cursor || '').replace(/^o_/, '')) || 0
   const filter = STATUS_FILTER_QUERY[p.status] || {}
+  const range = TIME_RANGE_MAP[p.timeRange || 'all'] || TIME_RANGE_MAP.all
 
   const body = Object.assign(
     {
@@ -46,6 +49,8 @@ function list(params) {
     },
     filter
   )
+  // 0 是不限，后端也接受不传；显式带上便于排查
+  body.timeRange = range.code
 
   return http.post('/api/task/query', body).then((res) => {
     const rows = res.list || []

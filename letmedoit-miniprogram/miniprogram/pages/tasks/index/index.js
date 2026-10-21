@@ -1,6 +1,6 @@
 const taskApi = require('../../../services/task')
 const noticeApi = require('../../../services/notice')
-const { STATUS_FILTERS } = require('../../../constants/task')
+const { STATUS_FILTERS, TIME_RANGES } = require('../../../constants/task')
 const { presentTask, presentUser } = require('../../../utils/present')
 
 const EMPTY_TEXT = {
@@ -20,6 +20,9 @@ Page({
     navHeight: 44,
     role: 'assignee',
     status: 'all',
+    // 创建时间筛选：默认不限，排序始终是倒序（后端 update_time DESC）
+    timeRange: 'all',
+    timeLabel: '时间',
     filters: STATUS_FILTERS,
     summary: { assignee: 0, creator: 0, overdue: 0 },
     bannerUsers: [],
@@ -70,7 +73,11 @@ Page({
   async reload() {
     this.setData({ loading: true, error: '' })
     try {
-      const res = await taskApi.list({ role: this.data.role, status: this.data.status })
+      const res = await taskApi.list({
+        role: this.data.role,
+        status: this.data.status,
+        timeRange: this.data.timeRange,
+      })
       this.setData({
         list: res.list.map(presentTask),
         cursor: res.nextCursor || '',
@@ -85,7 +92,11 @@ Page({
 
   async refresh() {
     try {
-      const res = await taskApi.list({ role: this.data.role, status: this.data.status })
+      const res = await taskApi.list({
+        role: this.data.role,
+        status: this.data.status,
+        timeRange: this.data.timeRange,
+      })
       this.setData({
         list: res.list.map(presentTask),
         cursor: res.nextCursor || '',
@@ -108,6 +119,7 @@ Page({
       const res = await taskApi.list({
         role: this.data.role,
         status: this.data.status,
+        timeRange: this.data.timeRange,
         cursor: this.data.cursor,
       })
       this.setData({
@@ -157,6 +169,11 @@ Page({
   },
 
   emptyOf() {
+    // 时间筛选优先：这段时间没东西，不一定是真的没活儿
+    if (this.data.timeRange !== 'all') {
+      const label = (TIME_RANGES.find((t) => t.key === this.data.timeRange) || {}).label || ''
+      return { title: label + '还没有任务', sub: '换个时间范围，或看看全部', action: '看全部' }
+    }
     const group = EMPTY_TEXT[this.data.role] || EMPTY_TEXT.assignee
     return this.data.status === 'all' ? group.all : group.other
   },
@@ -177,6 +194,25 @@ Page({
     this.reload()
   },
 
+  /** 创建时间筛选：不限 / 今天 / 近 7 天 / 近 30 天 */
+  pickTimeRange() {
+    wx.showActionSheet({
+      itemList: TIME_RANGES.map((t) => t.label),
+      success: (res) => {
+        const picked = TIME_RANGES[res.tapIndex]
+        if (!picked || picked.key === this.data.timeRange) return
+        this.setData({
+          timeRange: picked.key,
+          // 默认不限时按钮上只写「时间」，不占视觉
+          timeLabel: picked.key === 'all' ? '时间' : picked.label,
+          list: [],
+          loading: true,
+        })
+        this.reload()
+      },
+    })
+  },
+
   goDetail(e) {
     wx.navigateTo({ url: '/pages/tasks/detail/index?id=' + e.currentTarget.dataset.id })
   },
@@ -190,8 +226,15 @@ Page({
   },
 
   emptyAction() {
-    if (this.data.status !== 'all') {
-      this.setData({ status: 'all', list: [], loading: true })
+    // 时间/状态筛出来的空列表，先回到「全部 + 不限时间」
+    if (this.data.timeRange !== 'all' || this.data.status !== 'all') {
+      this.setData({
+        timeRange: 'all',
+        timeLabel: '时间',
+        status: 'all',
+        list: [],
+        loading: true,
+      })
       this.reload()
       return
     }

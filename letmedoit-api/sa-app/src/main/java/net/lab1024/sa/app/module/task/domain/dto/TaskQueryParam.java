@@ -33,6 +33,11 @@ public class TaskQueryParam {
     private LocalDateTime now;
 
     /**
+     * 创建时间下界：按「今天 / 近 7 天 / 近 30 天」算好的起点，null 表示不限
+     */
+    private LocalDateTime createStartTime;
+
+    /**
      * 删除标识，固定传 false
      */
     private Boolean deletedFlag;

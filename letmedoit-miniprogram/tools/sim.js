@@ -240,6 +240,26 @@ async function run() {
   listPage.switchStatus(evt({ key: 'all' }))
   await wait(300)
 
+  // 创建时间筛选：默认不限，选「近 30 天」后按钮变文案并重新拉列表
+  const taskSvcForTime = require(path.join(ROOT, 'services/task'))
+  const allTime = await taskSvcForTime.list({ role: 'assignee', timeRange: 'all' })
+  const todayTime = await taskSvcForTime.list({ role: 'assignee', timeRange: 'today' })
+  check(
+    todayTime.total <= allTime.total,
+    '今天筛选 ' + todayTime.total + ' 条 ≤ 不限 ' + allTime.total + ' 条'
+  )
+  check(listPage.data.timeRange === 'all' && listPage.data.timeLabel === '时间', '默认时间不限')
+  listPage.pickTimeRange()
+  await wait(400)
+  check(
+    listPage.data.timeRange === 'last30' && listPage.data.timeLabel === '近 30 天',
+    '选中时间后按钮显示「' + listPage.data.timeLabel + '」'
+  )
+  check(listPage.data.loading === false, '选完时间已重新拉列表')
+  listPage.emptyAction()
+  await wait(400)
+  check(listPage.data.timeRange === 'all' && listPage.data.timeLabel === '时间', '空态「看全部」把时间重置回不限')
+
   console.log('\n[4] 分页')
   const page1 = await require(path.join(ROOT, 'services/task')).list({ role: 'assignee', status: 'all' })
   check(page1.list.length === 10 || page1.list.length === page1.total, '首页 ' + page1.list.length + ' 条 / 共 ' + page1.total)

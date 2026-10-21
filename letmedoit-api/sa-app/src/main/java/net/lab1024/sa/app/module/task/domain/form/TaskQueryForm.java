@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import net.lab1024.sa.app.module.task.constant.TaskRoleEnum;
 import net.lab1024.sa.app.module.task.constant.TaskStatusEnum;
+import net.lab1024.sa.app.module.task.constant.TaskTimeRangeEnum;
 import net.lab1024.sa.base.common.domain.PageParam;
 import net.lab1024.sa.base.common.swagger.SchemaEnum;
 import net.lab1024.sa.base.common.validator.enumeration.CheckEnum;
@@ -33,6 +34,11 @@ public class TaskQueryForm extends PageParam {
 
     @Schema(description = "只看逾期任务（派生状态，不是 t_task.status 的值）")
     private Boolean overdueFlag;
+
+    @Schema(description = "创建时间范围 0不限 1今天 2近7天 3近30天，不传视为不限", example = "1")
+    @SchemaEnum(desc = "创建时间范围", value = TaskTimeRangeEnum.class, required = false)
+    @CheckEnum(value = TaskTimeRangeEnum.class, message = "创建时间范围错误")
+    private Integer timeRange;
 
     @Schema(description = "标题关键词")
     private String keyword;

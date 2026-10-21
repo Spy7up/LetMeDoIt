@@ -101,6 +101,22 @@ const STATUS_FILTER_QUERY = {
   overdue: { overdueFlag: true },
 }
 
+/**
+ * 创建时间筛选：默认「不限」，列表本身按更新时间倒序
+ * label 显示在筛选按钮上，code 对应后端 TaskTimeRangeEnum
+ */
+const TIME_RANGES = [
+  { key: 'all', label: '不限', code: 0 },
+  { key: 'today', label: '今天', code: 1 },
+  { key: 'last7', label: '近 7 天', code: 2 },
+  { key: 'last30', label: '近 30 天', code: 3 },
+]
+
+const TIME_RANGE_MAP = TIME_RANGES.reduce((acc, item) => {
+  acc[item.key] = item
+  return acc
+}, {})
+
 const REMIND_OPTIONS = [
   { key: 'none', label: '不提醒', minutes: 0 },
   { key: 'm10', label: '提前 10 分钟', minutes: 10 },
@@ -183,6 +199,8 @@ module.exports = {
   COMPLETION_MODE_CODE,
   STATUS_FILTERS,
   STATUS_FILTER_QUERY,
+  TIME_RANGES,
+  TIME_RANGE_MAP,
   REMIND_OPTIONS,
   resolveDisplayStatus,
   statusStyle,

@@ -530,6 +530,15 @@ route('POST', /^\/api\/task\/query$/, ({ me, body }) => {
     const kw = String(body.keyword)
     list = list.filter((t) => t.title.indexOf(kw) >= 0)
   }
+  // 创建时间范围：0不限 1今天 2近7天 3近30天（与 TaskTimeRangeEnum 一致）
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const timeStart = {
+    1: startOfToday.getTime(),
+    2: startOfToday.getTime() - 6 * DAY,
+    3: startOfToday.getTime() - 29 * DAY,
+  }[Number(body.timeRange)]
+  if (timeStart) list = list.filter((t) => t.createTime >= timeStart)
 
   list.sort((a, b) => b.updateTime - a.updateTime)
   const pageNum = Math.max(Number(body.pageNum) || 1, 1)

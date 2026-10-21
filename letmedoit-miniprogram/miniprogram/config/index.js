@@ -10,7 +10,7 @@
 const ENV = 'dev' // 'dev' | 'prod'
 
 const ENV_CONFIG = {
-  dev: { baseUrl: 'http://192.168.31.79:8081' },
+  dev: { baseUrl: 'https://40321u14v3.zicp.fun' },
   prod: { baseUrl: 'https://api.letmedo.cn' },
 }
 

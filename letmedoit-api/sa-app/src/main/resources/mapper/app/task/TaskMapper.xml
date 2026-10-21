@@ -56,6 +56,10 @@
         <if test="param.query.keyword != null and param.query.keyword != ''">
             AND INSTR(t.title, #{param.query.keyword})
         </if>
+        <!-- 创建时间下界：今天 / 近 7 天 / 近 30 天，由 service 算好传进来 -->
+        <if test="param.createStartTime != null">
+            AND t.create_time &gt;= #{param.createStartTime}
+        </if>
         ORDER BY t.update_time DESC, t.task_id DESC
     </select>
 

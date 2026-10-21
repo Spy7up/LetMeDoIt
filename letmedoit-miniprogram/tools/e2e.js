@@ -357,6 +357,19 @@ async function run() {
     '逾期筛选 ' + overdueList.list.length + ' 条'
   )
 
+  // 创建时间筛选：不限 ≥ 近 7 天 ≥ 今天，且倒序（updatedAt 递减）
+  const allRange = await taskSvc.list({ role: 'assignee', status: 'all', timeRange: 'all' })
+  const weekRange = await taskSvc.list({ role: 'assignee', status: 'all', timeRange: 'last7' })
+  const todayRange = await taskSvc.list({ role: 'assignee', status: 'all', timeRange: 'today' })
+  check(
+    allRange.total >= weekRange.total && weekRange.total >= todayRange.total,
+    '时间范围递减：不限 ' + allRange.total + ' / 近7天 ' + weekRange.total + ' / 今天 ' + todayRange.total
+  )
+  const desc = allRange.list.every(
+    (t, i) => i === 0 || new Date(allRange.list[i - 1].updatedAt) >= new Date(t.updatedAt)
+  )
+  check(desc, '默认按时间倒序')
+
   section('[11] 拒绝自己那一格')
   const dl2 = new Date(Date.now() + 2 * 3600 * 1000)
   const dl2s =

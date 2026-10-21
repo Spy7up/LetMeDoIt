@@ -9,6 +9,7 @@ import net.lab1024.sa.app.module.task.constant.ParticipantStatusEnum;
 import net.lab1024.sa.app.module.task.constant.TaskEventTypeEnum;
 import net.lab1024.sa.app.module.task.constant.TaskRoleEnum;
 import net.lab1024.sa.app.module.task.constant.TaskStatusEnum;
+import net.lab1024.sa.app.module.task.constant.TaskTimeRangeEnum;
 import net.lab1024.sa.app.module.task.dao.TaskDao;
 import net.lab1024.sa.app.module.task.dao.TaskEventDao;
 import net.lab1024.sa.app.module.task.dao.TaskParticipantDao;
@@ -32,6 +33,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -165,11 +167,35 @@ public class TaskQueryService {
         TaskQueryParam param = new TaskQueryParam();
         param.setQuery(queryForm);
         param.setMemberId(memberId);
-        param.setNow(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        param.setNow(now);
         param.setDeletedFlag(Boolean.FALSE);
         param.setActiveTaskStatusList(TaskManager.ACTIVE_TASK_STATUS);
         param.setDoneParticipantStatus(ParticipantStatusEnum.COMPLETED.getValue());
+        // 时间范围按「创建时间」筛，起点在服务端算，避免手机时区不同算出不同的「今天」
+        param.setCreateStartTime(resolveCreateStartTime(queryForm.getTimeRange(), now));
         return param;
+    }
+
+    /**
+     * 时间范围 → 创建时间起点；null 表示不限
+     */
+    private LocalDateTime resolveCreateStartTime(Integer timeRange, LocalDateTime now) {
+        if (timeRange == null || TaskTimeRangeEnum.ALL.getValue().equals(timeRange)) {
+            return null;
+        }
+        LocalDate today = now.toLocalDate();
+        if (TaskTimeRangeEnum.TODAY.getValue().equals(timeRange)) {
+            return today.atStartOfDay();
+        }
+        if (TaskTimeRangeEnum.LAST_7_DAYS.getValue().equals(timeRange)) {
+            // 含今天共 7 天
+            return today.minusDays(6).atStartOfDay();
+        }
+        if (TaskTimeRangeEnum.LAST_30_DAYS.getValue().equals(timeRange)) {
+            return today.minusDays(29).atStartOfDay();
+        }
+        return null;
     }
 
     /**

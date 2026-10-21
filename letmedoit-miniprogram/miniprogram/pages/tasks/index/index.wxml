@@ -16,9 +16,8 @@
   </view>
 
   <view class="page-body">
-    <!-- 液态玻璃 banner -->
+    <!-- 毛玻璃 banner：主题色打底 + 两团彩色光斑 + 白色磨砂层 -->
     <view class="glass-banner">
-      <view class="glass-banner-fill"></view>
       <view class="glass">
         <view class="g-inner">
           <view class="g-top">
@@ -61,19 +60,28 @@
       </view>
     </view>
 
-    <!-- 状态筛选 -->
-    <scroll-view class="chips-scroll" scroll-x enable-flex show-scrollbar="{{false}}">
-      <view class="chips">
-        <view
-          class="chip {{status === item.key ? 'on' : ''}}"
-          wx:for="{{filters}}"
-          wx:key="key"
-          data-key="{{item.key}}"
-          bindtap="switchStatus"
-          >{{item.label}}</view
-        >
+    <!-- 状态筛选 + 创建时间筛选 -->
+    <view class="filter-row">
+      <view
+        class="time-trigger {{timeRange !== 'all' ? 'on' : ''}}"
+        bindtap="pickTimeRange"
+      >
+        <text class="time-trigger-txt">{{timeLabel}}</text>
+        <image class="ic-sm time-trigger-arrow" src="/images/icons/chevron-muted.png" />
       </view>
-    </scroll-view>
+      <scroll-view class="chips-scroll" scroll-x enable-flex show-scrollbar="{{false}}">
+        <view class="chips">
+          <view
+            class="chip {{status === item.key ? 'on' : ''}}"
+            wx:for="{{filters}}"
+            wx:key="key"
+            data-key="{{item.key}}"
+            bindtap="switchStatus"
+            >{{item.label}}</view
+          >
+        </view>
+      </scroll-view>
+    </view>
 
     <!-- 骨架 -->
     <view class="list-gap" wx:if="{{loading}}">
