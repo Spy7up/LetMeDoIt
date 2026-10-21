@@ -47,6 +47,16 @@ public class WxAuthService {
      */
     private static final int LOGIN_LIMIT_PER_MINUTE = 30;
 
+    /**
+     * 昵称最大长度（与小程序端 maxlength 一致）
+     */
+    private static final int NICKNAME_MAX_LENGTH = 20;
+
+    /**
+     * 头像地址最大长度，与 t_wx_member.avatar 的 VARCHAR(500) 对齐
+     */
+    private static final int AVATAR_MAX_LENGTH = 500;
+
     @Resource(name = AppTokenConfig.BEAN_NAME)
     private StpLogic stpAppLogic;
 
@@ -73,7 +83,9 @@ public class WxAuthService {
 
         WxSessionVO session = wxApiService.jscode2session(loginForm.getCode());
 
-        WxMemberEntity member = wxMemberService.getOrCreate(session.getOpenId(), session.getUnionId());
+        // 前端把微信授权拿到的昵称头像一起带上来，拿不到就由服务端生成兜底昵称
+        WxMemberEntity member = wxMemberService.getOrCreate(
+                session.getOpenId(), session.getUnionId(), loginForm.getNickname(), loginForm.getAvatar());
         if (member == null) {
             return ResponseDTO.userErrorParam("登录失败，请重试");
         }
@@ -152,7 +164,10 @@ public class WxAuthService {
     }
 
     /**
-     * 同步昵称头像（小程序端 userProfile 授权后调用）
+     * 更新昵称头像
+     * <p>
+     * 头像只由小程序端的 chooseAvatar 提供（微信头像/微信内相册），不提供文件上传通道；
+     * 昵称同理走 input type=nickname。服务端只做长度与空值校验。
      */
     public ResponseDTO<WxMemberVO> updateProfile(String nickname, String avatar) {
         RequestMember current = AppRequestUtil.getMember();
@@ -160,9 +175,20 @@ public class WxAuthService {
             return ResponseDTO.error(UserErrorCode.LOGIN_STATE_INVALID);
         }
 
-        wxMemberService.updateProfile(current.getMemberId(), nickname, avatar);
-        WxMemberEntity entity = wxMemberService.getById(current.getMemberId());
-        RequestMember refreshed = wxMemberLoginManager.loadLoginInfo(entity);
+        String name = StrUtil.trimToEmpty(nickname);
+        if (StrUtil.isBlank(name)) {
+            return ResponseDTO.userErrorParam("昵称不能为空");
+        }
+        if (name.length() > NICKNAME_MAX_LENGTH) {
+            return ResponseDTO.userErrorParam("昵称最多 " + NICKNAME_MAX_LENGTH + " 个字");
+        }
+        String avatarUrl = StrUtil.trimToEmpty(avatar);
+        if (avatarUrl.length() > AVATAR_MAX_LENGTH) {
+            return ResponseDTO.userErrorParam("头像地址过长，请重新选择");
+        }
+
+        wxMemberService.updateProfile(current.getMemberId(), name, avatarUrl);
+        RequestMember refreshed = wxMemberLoginManager.loadLoginInfo(wxMemberService.getById(current.getMemberId()));
         return ResponseDTO.ok(SmartBeanUtil.copy(refreshed, WxMemberVO.class));
     }
 
@@ -180,12 +206,22 @@ public class WxAuthService {
     }
 
     /**
-     * 当前登录会员（直接读上下文，不查库）
+     * 当前登录会员
+     * <p>
+     * 正常走上下文（不查库）；只有在邀请码缺失时才回源一次并刷新登录态缓存，
+     * 兜住两种情况：老会员从未生成过邀请码、缓存是加字段之前写入的。
      */
     public ResponseDTO<WxMemberVO> currentMember() {
         RequestMember current = AppRequestUtil.getMember();
         if (current == null) {
             return ResponseDTO.error(UserErrorCode.LOGIN_STATE_INVALID);
+        }
+        if (StrUtil.isBlank(current.getInviteCode())) {
+            WxMemberEntity entity = wxMemberService.getById(current.getMemberId());
+            if (entity != null) {
+                wxMemberService.ensureInviteCode(entity);
+                current = wxMemberLoginManager.loadLoginInfo(entity);
+            }
         }
         return ResponseDTO.ok(SmartBeanUtil.copy(current, WxMemberVO.class));
     }

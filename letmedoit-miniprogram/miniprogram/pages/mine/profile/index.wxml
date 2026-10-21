@@ -6,7 +6,7 @@
         <view wx:else class="av av-56" style="{{avatarStyle}}">{{initial}}</view>
         <view class="avatar-mask">换</view>
       </button>
-      <text class="avatar-tip">点头像从微信里选一张</text>
+      <text class="avatar-tip">点头像，从微信头像里选</text>
     </view>
 
     <view class="field">
@@ -14,7 +14,7 @@
       <input
         class="input"
         type="nickname"
-        placeholder="比如：小林"
+        placeholder="点这里，键盘上方可用微信昵称"
         placeholder-class="ph"
         maxlength="20"
         value="{{nickname}}"
@@ -26,7 +26,7 @@
 
     <view class="tip">
       <image class="ic-sm" src="/images/icons/bell-brand.png" />
-      <text>好友看到的是你的昵称和头像，改完立即生效</text>
+      <text>头像和昵称都取自微信，不支持自己上传图片</text>
     </view>
 
     <view class="actionbar-space"></view>

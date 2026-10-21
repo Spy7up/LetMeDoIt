@@ -8,10 +8,10 @@
 
 .avatar-btn {
   position: relative;
-  width: 112rpx;
-  height: 112rpx;
+  width: 132rpx;
+  height: 132rpx;
   padding: 0;
-  border-radius: 40rpx;
+  border-radius: 44rpx;
   background: transparent;
   line-height: 1;
   overflow: visible;
@@ -21,18 +21,20 @@
   border: none;
 }
 
-.avatar-img {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 40rpx;
+.avatar-img,
+.avatar-btn .av {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 44rpx;
+  font-size: 52rpx;
 }
 
 .avatar-mask {
   position: absolute;
   right: -6rpx;
   bottom: -6rpx;
-  width: 44rpx;
-  height: 44rpx;
+  width: 48rpx;
+  height: 48rpx;
   border-radius: 50%;
   background: #fff;
   border: 1rpx solid var(--line2);

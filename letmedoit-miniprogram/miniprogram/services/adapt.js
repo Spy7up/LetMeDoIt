@@ -60,6 +60,7 @@ function member(vo) {
     avatarUrl: vo.avatar || '',
     phone: vo.phone || '',
     gender: vo.gender == null ? 0 : vo.gender,
+    inviteCode: vo.inviteCode || '',
   }
 }
 

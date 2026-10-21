@@ -40,7 +40,7 @@ letmedoit/
 │   │   │   │   └── participants/ # 选参与者 / 追加参与者
 │   │   │   ├── messages/index/  # 服务通知中心（与微信同构）
 │   │   │   ├── friends/         # 好友 / 邀请 / 好友详情
-│   │   │   └── mine/            # 我的 / 编辑资料 / 提醒设置
+│   │   │   └── mine/            # 我的 / 头像昵称 / 提醒设置
 │   │   ├── services/            # 领域方法：auth / friend / task / notice / notify + adapt（VO→页面模型）
 │   │   ├── utils/               # request 封装、格式化、展示层派生
 │   │   ├── constants/           # 状态与文案映射、后端数值枚举（唯一出口）

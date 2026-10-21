@@ -7,7 +7,7 @@
       </view>
       <view class="profile-txt">
         <text class="profile-name">{{user.nickname}}</text>
-        <text class="profile-code">邀请码 {{user.inviteCode}}</text>
+        <text class="profile-code">邀请码 {{user.inviteCode || '——'}}</text>
       </view>
       <image class="chev" src="/images/icons/chevron-ghost.png" />
     </view>
@@ -44,7 +44,7 @@
       </view>
       <view class="menu-row" bindtap="goProfile">
         <image class="ic" src="/images/icons/me-ink.png" />
-        <text class="menu-label">编辑资料</text>
+        <text class="menu-label">头像和昵称</text>
         <image class="chev" src="/images/icons/chevron-ghost.png" />
       </view>
       <view class="menu-row" bindtap="privacy">

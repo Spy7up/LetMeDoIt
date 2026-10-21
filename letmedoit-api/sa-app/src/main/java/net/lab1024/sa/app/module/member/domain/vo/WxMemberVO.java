@@ -23,6 +23,9 @@ public class WxMemberVO {
     @Schema(description = "手机号")
     private String phone;
 
+    @Schema(description = "邀请码（6位，加好友用）")
+    private String inviteCode;
+
     @Schema(description = "性别 0未知 1男 2女")
     private Integer gender;
 }

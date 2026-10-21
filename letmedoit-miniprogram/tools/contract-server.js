@@ -304,6 +304,14 @@ function isOverdue(task, now) {
   return (task.status === TASK.PENDING || task.status === TASK.IN_PROGRESS) && task.deadline < now
 }
 
+/** 未授权时的兜底昵称：用户 + 4 位大写字母数字 */
+function fallbackNickname() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let s = ''
+  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return '用户' + s
+}
+
 function memberOf(id) {
   return state.members.find((m) => m.memberId === Number(id)) || null
 }
@@ -463,10 +471,19 @@ route('POST', /^\/api\/auth\/login$/, ({ body }) => {
     if (state.tokens[k] === me.memberId) delete state.tokens[k]
   })
   state.tokens[token] = me.memberId
+
+  // 登录时带上微信资料就写入；没有（用户拒绝授权）且库里也没昵称，就兜底「用户XXXX」
+  if (body.nickname) {
+    me.nickname = String(body.nickname)
+    me.avatar = String(body.avatar || '')
+  } else if (!me.nickname) {
+    me.nickname = fallbackNickname()
+  }
+
   return ok({
     token,
     tokenName: 'App-Token',
-    member: { memberId: me.memberId, nickname: me.nickname, avatar: me.avatar, phone: null, gender: 0 },
+    member: { memberId: me.memberId, nickname: me.nickname, avatar: me.avatar, phone: null, inviteCode: me.inviteCode, gender: 0 },
     newUser: false,
     needBindPhone: false,
   })
@@ -481,17 +498,17 @@ route('POST', /^\/api\/auth\/logout$/, ({ me }) => {
 
 route('GET', /^\/api\/member\/info$/, ({ me }) => {
   const m = memberOf(me)
-  return ok({ memberId: m.memberId, nickname: m.nickname, avatar: m.avatar, phone: null, gender: 0 })
+  return ok({ memberId: m.memberId, nickname: m.nickname, avatar: m.avatar, phone: null, inviteCode: m.inviteCode, gender: 0 })
 })
 
 route('POST', /^\/api\/member\/profile$/, ({ me, body }) => {
   const m = memberOf(me)
-  if (body.nickname) {
-    if (String(body.nickname).length > 20) return fail(ERR.PARAM, '昵称最多 20 个字')
-    m.nickname = String(body.nickname)
-  }
+  const nickname = String(body.nickname || '').trim()
+  if (!nickname) return fail(ERR.PARAM, '昵称不能为空')
+  if (nickname.length > 20) return fail(ERR.PARAM, '昵称最多 20 个字')
+  m.nickname = nickname
   if (body.avatar !== undefined) m.avatar = String(body.avatar || '')
-  return ok({ memberId: m.memberId, nickname: m.nickname, avatar: m.avatar, phone: null, gender: 0 })
+  return ok({ memberId: m.memberId, nickname: m.nickname, avatar: m.avatar, phone: null, inviteCode: m.inviteCode, gender: 0 })
 })
 
 /* 任务 */
@@ -1033,6 +1050,8 @@ function start(options) {
         reset: () => {
           state = seed()
         },
+        // 自检脚本要模拟「还没设定昵称头像的新用户」
+        getState: () => state,
       })
     })
   })

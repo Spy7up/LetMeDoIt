@@ -2,7 +2,10 @@
   <!-- 自定义导航 -->
   <view class="navbar" style="padding-top:{{statusBarHeight}}px">
     <view class="nav-inner" style="height:{{navHeight}}px">
-      <view class="wordmark">让我做<view class="dot"></view></view>
+      <view class="brand">
+        <image class="brand-logo" src="/images/logo.png" mode="aspectFill" />
+        <view class="wordmark">让我做<view class="dot"></view></view>
+      </view>
       <view class="nav-right">
         <view class="bell-wrap" bindtap="goMessages">
           <image class="ic-md" src="/images/icons/bell-ink.png" />

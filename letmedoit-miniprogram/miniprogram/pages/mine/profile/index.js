@@ -15,7 +15,7 @@ Page({
       const user = await getApp().ensureLogin()
       const u = presentUser(user)
       this.setData({
-        nickname: user.nickname,
+        nickname: user.nickname || '',
         avatarUrl: user.avatarUrl || '',
         initial: u.initial,
         avatarStyle: u.avatarStyle,
@@ -34,7 +34,7 @@ Page({
   },
 
   async save() {
-    const nickname = this.data.nickname.trim()
+    const nickname = (this.data.nickname || '').trim()
     if (!nickname) {
       wx.showToast({ title: '起个名字吧', icon: 'none' })
       return
@@ -43,7 +43,7 @@ Page({
     this.setData({ saving: true })
     try {
       const user = await auth.updateProfile({ nickname, avatarUrl: this.data.avatarUrl })
-      getApp().globalData.user = user
+      getApp().setUser(user)
       wx.showToast({ title: '改好了', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 600)
     } catch (e) {

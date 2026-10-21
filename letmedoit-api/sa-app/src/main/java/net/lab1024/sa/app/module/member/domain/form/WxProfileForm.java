@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 同步昵称头像
+ * 设定昵称头像（每个会员只能成功一次）
  *
  * @author smart-admin
  */
@@ -13,7 +13,7 @@ import lombok.Data;
 public class WxProfileForm {
 
     @Schema(description = "昵称")
-    @Size(max = 64, message = "昵称最多64字符")
+    @Size(max = 20, message = "昵称最多20个字")
     private String nickname;
 
     @Schema(description = "头像URL")

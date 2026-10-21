@@ -105,11 +105,18 @@ function wxLoginCode() {
  * 用 wx.login 的 code 换 token
  * 登录接口本身免鉴权，所以 auth: false，避免递归
  *
+ * @param {{nickname?:string, avatarUrl?:string}} profile 微信授权拿到的资料，拒绝授权时不传
  * @returns {Promise<{token:string, tokenName:string, member:object, newUser:boolean}>}
  */
-async function silentLogin() {
+async function silentLogin(profile) {
   const code = await wxLoginCode()
-  const envelope = await send({ url: '/api/auth/login', method: 'POST', data: { code }, auth: false })
+  const data = { code }
+  // 只有真的拿到微信资料才带上去；后端会用「用户XXXX」兜底
+  if (profile && profile.nickname) {
+    data.nickname = profile.nickname
+    data.avatar = profile.avatarUrl || ''
+  }
+  const envelope = await send({ url: '/api/auth/login', method: 'POST', data, auth: false })
   if (envelope.code !== 0 || !envelope.data) throw makeError(envelope, '登录失败')
   setToken(envelope.data.token)
   return envelope.data

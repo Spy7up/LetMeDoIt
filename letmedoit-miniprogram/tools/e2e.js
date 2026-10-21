@@ -436,7 +436,43 @@ async function run() {
     check(!!e.message, '非法状态流转被拦：' + e.message)
   }
 
-  section('[15] 登录态失效自动重登')
+  section('[15] 微信资料与兜底昵称')
+  // 拒绝授权：登录只带 code，服务端生成「用户XXXX」
+  loginCode = 'e2e_anon_' + Date.now()
+  wx.removeStorageSync('lmd_app_token')
+  const anon = await api('auth').login()
+  check(/^用户[A-Z0-9]{4}$/.test(anon.nickname || ''), '未授权时兜底昵称 ' + anon.nickname)
+  check(!anon.avatarUrl, '未授权时没有头像')
+
+  // 授权：登录直接把微信昵称头像写进会员
+  loginCode = 'e2e_wx_' + Date.now()
+  wx.removeStorageSync('lmd_app_token')
+  const authed = await api('auth').login({
+    nickname: '微信上的名字',
+    avatarUrl: 'https://thirdwx.qlogo.cn/e2e.jpg',
+  })
+  check(authed.nickname === '微信上的名字', '登录带微信昵称 ' + authed.nickname)
+  check(authed.avatarUrl === 'https://thirdwx.qlogo.cn/e2e.jpg', '登录带微信头像')
+
+  // 微信返回占位资料时不能当昵称用
+  loginCode = 'e2e_placeholder_' + Date.now()
+  wx.removeStorageSync('lmd_app_token')
+  const placeholder = await api('auth').login({
+    nickname: '微信用户',
+    avatarUrl: 'https://thirdwx.qlogo.cn/grey.jpg',
+  })
+  check(/^用户[A-Z0-9]{4}$/.test(placeholder.nickname || ''), '占位昵称被替换 ' + placeholder.nickname)
+  check(!placeholder.avatarUrl, '占位授权不带灰色默认头像')
+
+  // 头像昵称仍可改（前端只给 chooseAvatar / type=nickname 入口，不提供上传）
+  const changed = await api('auth').updateProfile({
+    nickname: '改过的名字',
+    avatarUrl: 'wxfile://tmp_avatar.jpg',
+  })
+  check(changed.nickname === '改过的名字', '可以再次修改昵称 ' + changed.nickname)
+  check(changed.avatarUrl === 'wxfile://tmp_avatar.jpg', '头像更新成功')
+
+  section('[16] 登录态失效自动重登')
   storage['lmd_app_token'] = 'tok_expired_for_e2e'
   const after = await taskSvc.summary()
   check(typeof after.assignee === 'number', '过期 token 自动换新并重放成功')

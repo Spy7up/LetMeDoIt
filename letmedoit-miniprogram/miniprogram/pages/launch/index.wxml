@@ -21,7 +21,7 @@
   </view>
 
   <view class="launch-foot">
-    <view class="btn btn-primary btn-lg" bindtap="login">
+    <view class="btn btn-primary btn-lg" bindtap="onTapLogin">
       {{loading ? '正在登录…' : '微信一键登录'}}
     </view>
     <text class="launch-tip">{{tip || '登录后可以给好友派活，也能收到别人的委托'}}</text>

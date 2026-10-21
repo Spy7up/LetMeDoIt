@@ -95,6 +95,22 @@ image {
   gap: 16rpx;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-width: 0;
+}
+
+/* 导航栏 logo：与启动页 brand-mark 同一张图，圆角按比例收小 */
+.brand-logo {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 14rpx;
+  flex: 0 0 auto;
+  box-shadow: 0 4rpx 14rpx rgba(238, 78, 40, 0.22);
+}
+
 .wordmark {
   font-size: 34rpx;
   font-weight: 700;

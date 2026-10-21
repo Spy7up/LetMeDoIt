@@ -7,9 +7,12 @@
 const { http, silentLogin, clearSession } = require('../utils/request')
 const adapt = require('./adapt')
 
-/** 微信静默登录，成功后 token 已写入本地 */
-async function login() {
-  const result = await silentLogin()
+/**
+ * 微信登录
+ * @param {{nickname?:string, avatarUrl?:string}} profile 微信授权拿到的资料；用户拒绝授权时传空
+ */
+async function login(profile) {
+  const result = await silentLogin(profile)
   return adapt.member(result.member)
 }
 
@@ -19,7 +22,7 @@ function getProfile() {
 }
 
 /**
- * 同步昵称头像
+ * 设定昵称头像（只能成功一次，之后服务端会拒绝）
  * @param {{nickname:string, avatarUrl?:string}} dto
  */
 function updateProfile(dto) {
@@ -39,7 +42,8 @@ function logout() {
     .then(() => {
       clearSession()
       const app = getApp()
-      if (app && app.globalData) app.globalData.user = null
+      // token 与本地缓存的用户资料一起清掉
+      if (app && app.clearUser) app.clearUser()
       wx.reLaunch({ url: '/pages/launch/index' })
     })
 }

@@ -370,11 +370,12 @@ async function run() {
   check(friends.data.requests.length === 0, '同意后请求清空')
   check(friends.data.friends.length > 0, '好友数更新为 ' + friends.data.friends.length)
 
-  console.log('\n[11] 我的 / 设置 / 资料')
+  console.log('\n[11] 我的 / 设置 / 头像昵称')
   const minePage = loadPage('pages/mine/index/index')
   minePage.onLoad({})
   await wait(500)
   check(!!minePage.data.user, '资料：' + (minePage.data.user && minePage.data.user.nickname))
+  check(!!minePage.data.user.inviteCode, '我的页邀请码 ' + minePage.data.user.inviteCode)
   check(typeof minePage.data.stats.friendCount === 'number', '统计好友数 ' + minePage.data.stats.friendCount)
   check(!!minePage.data.rateText, '准时率 ' + minePage.data.rateText)
 
@@ -384,19 +385,33 @@ async function run() {
   await settings.toggle(evt({ key: 'TASK_ASSIGNED', index: 0 }))
   check(true, '模板占位未配置时不报错')
 
+  // 头像昵称页：头像只能来自微信 chooseAvatar，昵称来自 type=nickname，可以反复改
   const profile = loadPage('pages/mine/profile/index')
-  profile.onLoad({})
-  await wait(300)
-  check(profile.data.nickname === '小林', '资料页回填 ' + profile.data.nickname)
+  await profile.onLoad()
+  await wait(200)
+  check(profile.data.nickname === '小林', '头像昵称页回填 ' + profile.data.nickname)
+  profile.onChooseAvatar(evt({}, { avatarUrl: 'wxfile://tmp_me.jpg' }))
   profile.onNickname(evt({}, { value: '小林同学' }))
   await profile.save()
   await wait(400)
-  check(appInstance.globalData.user.nickname === '小林同学', '资料保存生效 ' + appInstance.globalData.user.nickname)
+  check(appInstance.globalData.user.nickname === '小林同学', '昵称改动生效 ' + appInstance.globalData.user.nickname)
+  check(appInstance.globalData.user.avatarUrl === 'wxfile://tmp_me.jpg', '头像改动生效')
+  check(storage['lmd_user'] && storage['lmd_user'].nickname === '小林同学', '用户资料已缓存到本地')
+
+  // 用户拒绝授权：登录没带微信资料且库里也没昵称 -> 「用户XXXX」
+  const meMember = server.getState().members.find((m) => m.memberId === 1)
+  meMember.nickname = ''
+  meMember.avatar = ''
+  wx.removeStorageSync('lmd_app_token')
+  const anon = await require(path.join(ROOT, 'services/auth')).login()
+  check(/^用户[A-Z0-9]{4}$/.test(anon.nickname || ''), '拒绝授权时兜底昵称 ' + anon.nickname)
+  check(!!anon.nickname && anon.nickname !== '微信用户', '不会把「微信用户」当昵称')
 
   const invite = loadPage('pages/friends/invite/index')
   invite.onLoad({})
   await wait(300)
   check(invite.data.inviteCode === 'K7M2QX', '邀请页邀请码 ' + invite.data.inviteCode)
+
 
   console.log('\n[12] 登录态失效自动重登')
   storage['lmd_app_token'] = 'tok_expired'
@@ -411,6 +426,15 @@ async function run() {
   } catch (e) {
     check(!!e.message && e.code !== 0, '错误文案：' + e.message + '（code=' + e.code + '）')
   }
+
+  console.log('\n[14] 退出登录清本地缓存')
+  appInstance.setUser({ id: '1', nickname: '小林同学', avatarUrl: '' })
+  check(!!storage['lmd_user'], '用户资料落在本地 ' + (storage['lmd_user'] && storage['lmd_user'].nickname))
+  await require(path.join(ROOT, 'services/auth')).logout()
+  await wait(500)
+  check(!storage['lmd_user'], '退出登录后用户资料缓存已清')
+  check(!storage['lmd_app_token'], '退出登录后 token 已清')
+  check(!appInstance.globalData.user, '内存里的用户也清空了')
 
   await server.close()
 

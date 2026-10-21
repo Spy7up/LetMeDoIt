@@ -1,4 +1,5 @@
 const taskApi = require('../../../services/task')
+const friendApi = require('../../../services/friend')
 const { presentUser } = require('../../../utils/present')
 
 Page({
@@ -32,11 +33,22 @@ Page({
   },
 
   async load() {
+    let user = null
     try {
-      const user = await getApp().refreshUser()
+      user = await getApp().refreshUser()
       this.setData({ user: presentUser(user) })
     } catch (e) {
       // 资料失败就保留上一次，统计继续拉
+    }
+
+    // 会员资料里暂时可能没有邀请码（老版本接口），用好友邀请码接口兜住，别让页面空着
+    if (user && !user.inviteCode) {
+      try {
+        const invite = await friendApi.getInvite()
+        if (invite && invite.inviteCode) this.setData({ 'user.inviteCode': invite.inviteCode })
+      } catch (e) {
+        // 邀请码取不到就显示占位符
+      }
     }
 
     try {
