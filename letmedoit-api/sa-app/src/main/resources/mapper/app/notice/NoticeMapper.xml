@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="net.lab1024.sa.app.module.notice.dao.NoticeDao">
+
+    <!-- 批量插入通知：一次任务可能同时通知多个人 -->
+    <insert id="insertBatch">
+        INSERT INTO t_task_notice
+            (member_id, task_id, template_key, title, fields_json, read_flag, deleted_flag, create_time, update_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.memberId}, #{item.taskId}, #{item.templateKey}, #{item.title}, #{item.fieldsJson},
+             #{item.readFlag}, #{item.deletedFlag}, #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+
+    <!-- 我的通知分页 -->
+    <select id="queryPage" resultType="net.lab1024.sa.app.module.notice.domain.entity.NoticeEntity">
+        SELECT
+            notice_id, member_id, task_id, template_key, title, fields_json,
+            read_flag, deleted_flag, create_time, update_time
+        FROM t_task_notice
+        WHERE member_id = #{memberId}
+          AND deleted_flag = 0
+        <if test="query.unreadFlag != null and query.unreadFlag">
+            AND read_flag = 0
+        </if>
+        ORDER BY create_time DESC, notice_id DESC
+    </select>
+
+    <!-- 未读数 -->
+    <select id="countUnread" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM t_task_notice
+        WHERE member_id = #{memberId}
+          AND deleted_flag = 0
+          AND read_flag = 0
+    </select>
+
+    <!-- 标记已读：noticeIds 为空表示全部 -->
+    <update id="updateRead">
+        UPDATE t_task_notice
+        SET read_flag = 1, update_time = #{updateTime}
+        WHERE member_id = #{memberId}
+          AND deleted_flag = 0
+          AND read_flag = 0
+        <if test="noticeIds != null and noticeIds.size() > 0">
+            AND notice_id IN
+            <foreach collection="noticeIds" open="(" close=")" separator="," item="noticeId">
+                #{noticeId}
+            </foreach>
+        </if>
+    </update>
+
+</mapper>

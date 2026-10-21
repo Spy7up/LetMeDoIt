@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="net.lab1024.sa.app.module.friend.dao.FriendDao">
+
+    <!--
+      好友列表：进行中任务数与最近互动时间用一次 UNION ALL 派生表算出，
+      再 LEFT JOIN 回好友关系，避免每行一个子查询（N+1 变成 1 次扫描）
+    -->
+    <select id="queryList" resultType="net.lab1024.sa.app.module.friend.domain.vo.FriendVO">
+        SELECT
+            f.friend_id,
+            f.friend_member_id AS memberId,
+            m.nickname,
+            m.avatar,
+            f.remark,
+            COALESCE(agg.active_count, 0) AS activeTaskCount,
+            COALESCE(agg.last_time, f.create_time) AS lastActiveTime
+        FROM t_friend f
+        INNER JOIN t_wx_member m ON m.member_id = f.friend_member_id AND m.deleted_flag = 0
+        LEFT JOIN (
+            SELECT
+                x.other_id,
+                SUM(CASE WHEN x.status IN
+                    <foreach collection="activeTaskStatusList" open="(" close=")" separator="," item="activeStatus">
+                        #{activeStatus}
+                    </foreach>
+                    THEN 1 ELSE 0 END) AS active_count,
+                MAX(x.update_time) AS last_time
+            FROM (
+                <!-- 我布置的任务：对方是参与者 -->
+                SELECT p.member_id AS other_id, t.status AS status, t.update_time AS update_time
+                FROM t_task t
+                INNER JOIN t_task_participant p ON p.task_id = t.task_id AND p.deleted_flag = 0
+                WHERE t.deleted_flag = #{deletedFlag}
+                  AND t.creator_id = #{memberId}
+                UNION ALL
+                <!-- 对方布置的任务：我是参与者 -->
+                SELECT t2.creator_id AS other_id, t2.status AS status, t2.update_time AS update_time
+                FROM t_task t2
+                INNER JOIN t_task_participant p2 ON p2.task_id = t2.task_id AND p2.deleted_flag = 0
+                WHERE t2.deleted_flag = #{deletedFlag}
+                  AND p2.member_id = #{memberId}
+            ) x
+            GROUP BY x.other_id
+        ) agg ON agg.other_id = f.friend_member_id
+        WHERE f.member_id = #{memberId}
+          AND f.deleted_flag = #{deletedFlag}
+        <if test="keyword != null and keyword != ''">
+            AND (INSTR(m.nickname, #{keyword}) OR INSTR(f.remark, #{keyword}))
+        </if>
+        ORDER BY lastActiveTime DESC, f.friend_id DESC
+    </select>
+
+    <!-- 按主键查询关系 -->
+    <select id="queryById" resultType="net.lab1024.sa.app.module.friend.domain.entity.FriendEntity">
+        SELECT friend_id, member_id, friend_member_id, remark, deleted_flag, create_time, update_time
+        FROM t_friend
+        WHERE friend_id = #{friendId}
+          AND deleted_flag = #{deletedFlag}
+    </select>
+
+    <!-- 两人之间是否已是好友 -->
+    <select id="queryByMemberAndFriend" resultType="net.lab1024.sa.app.module.friend.domain.entity.FriendEntity">
+        SELECT friend_id, member_id, friend_member_id, remark, deleted_flag, create_time, update_time
+        FROM t_friend
+        WHERE member_id = #{memberId}
+          AND friend_member_id = #{friendMemberId}
+          AND deleted_flag = #{deletedFlag}
+        LIMIT 1
+    </select>
+
+    <!-- 好友会员ID集合（建任务校验参与者用） -->
+    <select id="queryFriendMemberIds" resultType="java.lang.Long">
+        SELECT friend_member_id
+        FROM t_friend
+        WHERE member_id = #{memberId}
+          AND deleted_flag = #{deletedFlag}
+    </select>
+
+    <!-- 好友数量 -->
+    <select id="countByMember" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM t_friend
+        WHERE member_id = #{memberId}
+          AND deleted_flag = #{deletedFlag}
+    </select>
+
+    <!-- 建立关系：已存在则复活（含历史删除），唯一索引保证不重复 -->
+    <insert id="upsert">
+        INSERT INTO t_friend (member_id, friend_member_id, remark, deleted_flag, create_time, update_time)
+        VALUES (#{memberId}, #{friendMemberId}, NULL, 0, #{now}, #{now})
+        ON DUPLICATE KEY UPDATE deleted_flag = 0, update_time = #{now}
+    </insert>
+
+    <!-- 解除好友：双向置删除 -->
+    <update id="removeBoth">
+        UPDATE t_friend
+        SET deleted_flag = 1, update_time = #{updateTime}
+        WHERE deleted_flag = 0
+          AND ((member_id = #{memberId} AND friend_member_id = #{friendMemberId})
+            OR (member_id = #{friendMemberId} AND friend_member_id = #{memberId}))
+    </update>
+
+</mapper>

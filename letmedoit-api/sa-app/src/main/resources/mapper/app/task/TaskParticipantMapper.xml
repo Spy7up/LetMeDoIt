@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="net.lab1024.sa.app.module.task.dao.TaskParticipantDao">
+
+    <!-- 单条任务的参与者（详情页） -->
+    <select id="queryByTaskId" resultType="net.lab1024.sa.app.module.task.domain.dto.TaskParticipantRow">
+        SELECT
+            p.task_id,
+            p.participant_id,
+            p.member_id,
+            p.status,
+            p.complete_time,
+            p.complete_remark,
+            p.complete_images,
+            p.reject_reason,
+            m.nickname,
+            m.avatar
+        FROM t_task_participant p
+        INNER JOIN t_wx_member m ON m.member_id = p.member_id
+        WHERE p.task_id = #{taskId}
+          AND p.deleted_flag = #{deletedFlag}
+        ORDER BY p.participant_id ASC
+    </select>
+
+    <!-- 多条任务的参与者（列表页头像堆叠，批量取避免 N+1） -->
+    <select id="queryByTaskIds" resultType="net.lab1024.sa.app.module.task.domain.dto.TaskParticipantRow">
+        SELECT
+            p.task_id,
+            p.participant_id,
+            p.member_id,
+            p.status,
+            m.nickname,
+            m.avatar
+        FROM t_task_participant p
+        INNER JOIN t_wx_member m ON m.member_id = p.member_id
+        WHERE p.deleted_flag = #{deletedFlag}
+        AND p.task_id IN
+        <foreach collection="taskIds" open="(" close=")" separator="," item="taskId">
+            #{taskId}
+        </foreach>
+        ORDER BY p.task_id ASC, p.participant_id ASC
+    </select>
+
+    <!-- 事务内重算聚合状态用：只取状态字段 -->
+    <select id="queryEntityByTaskId" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskParticipantEntity">
+        SELECT participant_id, task_id, member_id, status, deleted_flag, create_time, update_time
+        FROM t_task_participant
+        WHERE task_id = #{taskId}
+          AND deleted_flag = #{deletedFlag}
+        ORDER BY participant_id ASC
+    </select>
+
+    <!-- 批量查实体（定时作业用） -->
+    <select id="queryEntityByTaskIds" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskParticipantEntity">
+        SELECT participant_id, task_id, member_id, status, deleted_flag, create_time, update_time
+        FROM t_task_participant
+        WHERE deleted_flag = #{deletedFlag}
+        AND task_id IN
+        <foreach collection="taskIds" open="(" close=")" separator="," item="taskId">
+            #{taskId}
+        </foreach>
+    </select>
+
+    <!-- 任务里我的那一格 -->
+    <select id="queryByTaskAndMember" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskParticipantEntity">
+        SELECT
+            participant_id, task_id, member_id, status, complete_time, complete_remark,
+            complete_images, reject_reason, deleted_flag, create_time, update_time
+        FROM t_task_participant
+        WHERE task_id = #{taskId}
+          AND member_id = #{memberId}
+          AND deleted_flag = #{deletedFlag}
+        LIMIT 1
+    </select>
+
+    <!-- 批量插入参与者（建任务、追加参与者），一条 SQL 写完 -->
+    <insert id="insertBatch">
+        INSERT INTO t_task_participant
+            (task_id, member_id, status, deleted_flag, create_time, update_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.taskId}, #{item.memberId}, #{item.status}, #{item.deletedFlag},
+             #{item.createTime}, #{item.updateTime})
+        </foreach>
+    </insert>
+
+    <!-- 状态流转：带期望状态，受影响行数为 0 说明已被并发改过 -->
+    <update id="updateStatus">
+        UPDATE t_task_participant
+        SET status = #{status}, update_time = #{updateTime}
+        WHERE participant_id = #{participantId}
+          AND deleted_flag = 0
+          AND status = #{expectStatus}
+    </update>
+
+    <!-- 完成我这份 -->
+    <update id="updateComplete">
+        UPDATE t_task_participant
+        SET status = #{status},
+            complete_time = #{completeTime},
+            complete_remark = #{remark},
+            complete_images = #{images},
+            update_time = #{updateTime}
+        WHERE participant_id = #{participantId}
+          AND deleted_flag = 0
+          AND status = #{expectStatus}
+    </update>
+
+    <!-- 拒绝 -->
+    <update id="updateReject">
+        UPDATE t_task_participant
+        SET status = #{status},
+            reject_reason = #{reason},
+            update_time = #{updateTime}
+        WHERE participant_id = #{participantId}
+          AND deleted_flag = 0
+          AND status = #{expectStatus}
+    </update>
+
+    <!-- 任一人完成后，其余未完成的人自动跳过 -->
+    <update id="skipOthers">
+        UPDATE t_task_participant
+        SET status = #{targetStatus}, update_time = #{updateTime}
+        WHERE task_id = #{taskId}
+          AND deleted_flag = 0
+          AND member_id &lt;&gt; #{excludeMemberId}
+          AND status IN
+          <foreach collection="statusList" open="(" close=")" separator="," item="item">
+              #{item}
+          </foreach>
+    </update>
+
+</mapper>

@@ -2,7 +2,7 @@
 
 > 好友间的日常任务委托与提醒。别人让你做的小事，说一遍就够。
 
-微信小程序，原生 WXML/WXSS。**当前版本可独立运行，不依赖后端**：所有接口走内置 Mock，逻辑与真实接口一致，改一行配置即可切到 SpringBoot。
+微信小程序，原生 WXML/WXSS。**已接真实后端**：所有接口走 `letmedoit-api`（SpringBoot / sa-app），本地无后端时可用 `tools/contract-server.js` 起一个同契约的替身。
 
 ---
 
@@ -13,7 +13,9 @@
 3. AppID 选「测试号」或填自己的 AppID（`project.config.json` 里现在是 `touristappid`）
 4. 编译，进入「任务」页即可
 
-首次进入会自动静默登录（Mock），不需要点任何东西。想走完整登录流程，可在「我的 → 退出登录」后再进。
+首次进入会自动静默登录（`wx.login` 换 code → `/api/auth/login`），不需要点任何东西。想走完整登录流程，可在「我的 → 退出登录」后再进。
+
+后端连不上时，登录会失败并停在启动页——先确认 `http://192.168.31.79:8081` 的 sa-app 在跑（`curl` 一下 `/api/auth/login` 有响应即可），或临时把 `ENV` 的 `baseUrl` 指回本机 1025 / 用 `node tools/contract-server.js` 起契约替身。
 
 > 建议在开发者工具里把「基础库」调到 2.32.0 以上；「详情 → 本地设置」勾选「不校验合法域名」可省去后续联调的麻烦。
 
@@ -39,33 +41,40 @@ letmedoit/
 │   │   │   ├── messages/index/  # 服务通知中心（与微信同构）
 │   │   │   ├── friends/         # 好友 / 邀请 / 好友详情
 │   │   │   └── mine/            # 我的 / 编辑资料 / 提醒设置
-│   │   ├── services/            # 领域方法：auth / friend / task / notice / notify
+│   │   ├── services/            # 领域方法：auth / friend / task / notice / notify + adapt（VO→页面模型）
 │   │   ├── utils/               # request 封装、格式化、展示层派生
-│   │   ├── constants/           # 状态与文案映射（唯一出口）
-│   │   ├── mock/                # Mock 服务端 + 种子数据
+│   │   ├── constants/           # 状态与文案映射、后端数值枚举（唯一出口）
 │   │   ├── config/              # 环境开关、订阅消息模板
 │   │   └── images/icons/        # 图标（脚本生成，见 tools/gen-assets.js）
 │   ├── docs/                    # 产品与技术方案
 │   ├── prototype/               # 8 屏高保真原型
 │   ├── assets/logo/             # Logo 源文件与各尺寸导出
-│   └── tools/                   # 图标生成、静态检查、运行时自检
-└── letmedoit-api/               # 后端（SpringBoot，待建）
+│   └── tools/                   # 图标生成、静态检查、离线自检、真后端联调
+└── letmedoit-api/               # 后端（SpringBoot / sa-app + sa-base + sa-admin）
 ```
 
 ---
 
-## 三、切到真实后端
+## 三、接口与环境
 
-只改一处：
+当前 `config/index.js` 里 `ENV = 'dev'`，指向 `http://192.168.31.79:8081`（局域网上的 sa-app）。切环境只改这一行：
 
 ```js
 // miniprogram/config/index.js
-const ENV = 'mock'   // 改成 'dev' 或 'prod'
+const ENV = 'dev'   // 'dev' 局域网 sa-app（192.168.31.79:8081）｜ 'prod' 线上
 ```
 
-`services/*` 与页面零改动。接口契约见 `docs/让我做-v1.1-产品与技术方案.md` 第 6 章。
+- **开发者工具**：「详情 → 本地设置」勾选「不校验合法域名」，否则 http 地址会被拦
+- **AppID 要一致**：`project.config.json` 是 `wxaa5051e002ac4fba`，后端 dev 的 `wx.miniapp.appid` 也是这个。不一致的话 `wx.login` 的 code 换不到 openid，登录会失败
+- **真机调试**：手机与服务器同网段即可直连（地址已是局域网 IP）
+- **切回本机**：把 `ENV_CONFIG.dev.baseUrl` 改回 `http://127.0.0.1:1025`
+- **接口契约**：`letmedoit-api/docs/让我做-接口说明与联调.md`（含路径、入参形状、枚举、业务规则）
+
+鉴权：登录后 token 存在本地，由 `utils/request.js` 自动注入 `App-Token: Bearer <token>`；遇到 `30007`（登录态失效）会用 `wx.login` 静默换一次 token 并重放请求。
 
 **页面铁律**：页面里不出现 `wx.request`、不出现 URL 字面量、不判断 `res.code`。全部经 `services` → `utils/request.js`。
+
+后端 VO 与页面模型之间只隔一层 `services/adapt.js`：ID 转字符串、状态数字转字符串枚举、时间转 ISO。页面永远只看到一套字段。
 
 ---
 
@@ -73,7 +82,7 @@ const ENV = 'mock'   // 改成 'dev' 或 'prod'
 
 | 模块 | 状态 |
 |---|---|
-| 微信登录 / 资料初始化 | ✅ Mock 登录，头像昵称可改（chooseAvatar + type=nickname） |
+| 微信登录 / 资料初始化 | ✅ 一键登录（sa-app mock openid，本地无需真实 AppID），头像昵称可改 |
 | 好友：邀请码、请求、列表、解除 | ✅ |
 | 布置任务：多选参与者、标题、描述、完成条件、截止、提醒、定时生效 | ✅ |
 | 任务列表：收到的 / 发出的、5 种筛选、分页、下拉刷新 | ✅ |
@@ -98,7 +107,8 @@ const ENV = 'mock'   // 改成 'dev' 或 'prod'
    `project.config.json` 里现在是 `touristappid`，上传前换成你的。
 
 3. **后端**
-   按方案第 6 章实现接口即可。`mock/db.js` 里的 `aggregate()` 是聚合状态的唯一判定，后端要写一份等价的。
+   已实现（`letmedoit-api`，sa-app）。启动方式、建表脚本、接口清单见 `letmedoit-api/docs/让我做-接口说明与联调.md`。
+   小程序侧不依赖 Mock，接口改一处 `ENV` 即可切到线上。
 
 ---
 
@@ -107,12 +117,17 @@ const ENV = 'mock'   // 改成 'dev' 或 'prod'
 没有开发者工具时也能验（**在 `letmedoit-miniprogram/` 目录下执行**，脚本内部按 `../miniprogram` 定位）：
 
 ```bash
-node tools/check.js    # 静态检查：页面四件套、JS 语法、require 路径、图片引用、跳转目标、事件绑定
-node tools/sim.js      # 运行时自检：用桩跑真实页面逻辑（登录→列表→接受→详情→完成→布置→通知→好友）
-node tools/gen-assets.js  # 重新生成图标（改了图标定义后执行）
+node tools/check.js                # 静态检查：页面四件套、JS 语法、require 路径、图片引用、跳转目标、事件绑定
+node tools/sim.js                  # 离线自检：起契约替身 + 桩跑真实页面（登录→列表→接受→详情→完成→布置→通知→好友）
+node tools/e2e.js                  # 真后端联调：默认连 config 里的 dev 地址，逐条验接口契约与业务规则
+node tools/e2e.js http://ip:8081   # 指定其他后端
+node tools/contract-server.js      # 单独起契约替身（1025），给开发者工具当后端用
+node tools/gen-assets.js           # 重新生成图标（改了图标定义后执行）
 ```
 
-两个脚本目前都是全绿。
+`sim.js` 不需要数据库；`e2e.js` 需要 sa-app 已启动且执行过建表脚本。
+
+三个脚本目前都是全绿：check 149 个文件通过、sim 全通过、e2e 72 项通过。
 
 ---
 
@@ -139,7 +154,8 @@ msedge --headless=old --screenshot=icon-512.png --window-size=512,512 \
 界面里的小图标（tabBar、箭头、铃铛等）是另一套，由 `tools/gen-assets.js` 生成，见第六节。
 
 ## 八、已知限制（v1.1 有意为之）
-- **数据不持久**：Mock 存在内存里，重启小程序即重置。这是为了演示时有新鲜数据。
-- **图片是本地临时路径**：完成任务选的图只存在当前会话，没有上传到 OSS。接后端时换成 `wx.uploadFile`。
+- **数据已真实落库**：走 `letmedoit-api` + MySQL，不再有内存 Mock；本地联调产生的会员/任务会留在库里。
+- **图片是本地临时路径**：完成任务选的图只存在当前会话，没有上传到 OSS。接上传时换成 `wx.uploadFile`。
+- **微信订阅消息只落库不投递**：通知写 `t_task_notice`（消息中心事实来源），真正调微信发送接口待接。
 - **没有自定义组件**：v1 用 `app.wxss` 全局类 + WXML 复用，先把链路跑通；抽组件放在 M2。
 - **深色模式**：未做，但颜色全走 CSS 变量，可整体替换。

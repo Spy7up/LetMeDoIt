@@ -44,7 +44,8 @@ Page({
     this.setData({ submitting: true })
     try {
       const res = await friendApi.acceptInviteCode(code)
-      wx.showToast({ title: '已加上 ' + res.friend.nickname, icon: 'none' })
+      // 后端直接返回文案（「已加上 妈妈」），不再返回好友对象
+      wx.showToast({ title: res.message, icon: 'none' })
       getApp().globalData.needRefresh = true
       setTimeout(() => wx.navigateBack(), 700)
     } catch (e) {

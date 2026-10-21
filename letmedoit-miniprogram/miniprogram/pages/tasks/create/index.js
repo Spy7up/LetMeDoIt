@@ -225,7 +225,6 @@ Page({
         completionMode: this.data.mode,
         deadline,
         startAt,
-        remindType: this.data.remindKey,
         remindMinutes: opt.minutes || 0,
       })
 

@@ -12,25 +12,28 @@ letmedoit/
 
 ## 一、letmedoit-miniprogram
 
-微信小程序前端，当前**可独立运行、不依赖后端**：所有接口走内置 Mock，逻辑与真实接口一致，改一行配置即可切到真实服务。
+微信小程序前端（已接真实后端，`ENV = 'dev'` 指向本机 sa-app）。
 
 - 用微信开发者工具「导入项目」时，目录选 `letmedoit-miniprogram`
-- 详细说明（目录结构、功能清单、Mock 与真实后端切换、自检脚本）见
+- 详细说明（目录结构、接口与环境切换、自检与联调脚本）见
   [`letmedoit-miniprogram/README.md`](./letmedoit-miniprogram/README.md)
 - 快速自检（在该目录下执行）：
 
   ```bash
   cd letmedoit-miniprogram
   node tools/check.js    # 静态检查
-  node tools/sim.js      # 运行时自检
+  node tools/sim.js      # 离线自检（契约替身 + 桩跑页面）
+  node tools/e2e.js      # 真后端联调（需 sa-app 已启动）
   ```
 
 ## 二、letmedoit-api
 
-后端服务代码目录，目前仅占位。接口契约见
-[`letmedoit-miniprogram/docs/让我做-v1.1-产品与技术方案.md`](./letmedoit-miniprogram/docs/让我做-v1.1-产品与技术方案.md) 第 6 章。
+后端服务（SpringBoot，基于 SmartAdmin 3.x：`sa-base` / `sa-app` / `sa-admin`）。
+小程序端接口在 `sa-app`，前缀 `/api`，鉴权头 `App-Token`。
 
-小程序侧切换后端只需改 `letmedoit-miniprogram/miniprogram/config/index.js` 里的 `ENV`，`services/*` 与页面无需改动。
+- 接口清单、业务规则、建表与启动、联调步骤见
+  [`letmedoit-api/docs/让我做-接口说明与联调.md`](./letmedoit-api/docs/让我做-接口说明与联调.md)
+- 启动：`java -jar sa-app/target/sa-app-dev-3.0.0.jar --server.port=8081`（小程序 dev 环境指向 `http://192.168.31.79:8081`）
 
 ## 三、Git 约定
 

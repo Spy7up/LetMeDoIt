@@ -24,6 +24,78 @@ function hm(d) {
   return pad(d.getHours()) + ':' + pad(d.getMinutes())
 }
 
+/* ---------------- 与后端的时间互转 ---------------- */
+
+/**
+ * 解析后端时间字符串
+ *
+ * sa-app 的 LocalDateTime 输出是 "2026-10-21 23:10:00"（无时区、无 T）。
+ * 直接用 new Date() 在 iOS 上会得到 Invalid Date，所以这里手工拆字段按本地时间构造。
+ *
+ * @param {string|Date|number} value
+ * @returns {Date|null}
+ */
+function parseTime(value) {
+  if (!value) return null
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value
+  if (typeof value === 'number') return new Date(value)
+
+  const text = String(value)
+
+  // 带时区标记的 ISO（toISOString 的 "…Z" 或 "…+08:00"）必须交给 Date 解析，
+  // 否则下面的正则会把 UTC 的 13:00 当成本地 13:00，整体偏移一个时区。
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(text)) {
+    const zoned = new Date(text)
+    return isNaN(zoned.getTime()) ? null : zoned
+  }
+
+  const m = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+  if (m) {
+    return new Date(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0)
+    )
+  }
+
+  const d = new Date(value)
+  return isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Date / ISO 字符串 → 后端要的 "yyyy-MM-dd HH:mm:ss"
+ * 秒不传时补 00。
+ */
+function apiTime(value) {
+  const d = parseTime(value)
+  if (!d) return ''
+  return (
+    d.getFullYear() +
+    '-' +
+    pad(d.getMonth() + 1) +
+    '-' +
+    pad(d.getDate()) +
+    ' ' +
+    pad(d.getHours()) +
+    ':' +
+    pad(d.getMinutes()) +
+    ':' +
+    pad(d.getSeconds())
+  )
+}
+
+/**
+ * 后端时间 → ISO 字符串
+ * 展示层统一吃 ISO，new Date(iso) 在各端都能稳定解析。
+ */
+function toIso(value) {
+  const d = parseTime(value)
+  return d ? d.toISOString() : null
+}
+
 /** 截止时间：带「今天/明天」语义 */
 function formatDeadline(iso, now) {
   if (!iso) return ''
@@ -82,6 +154,9 @@ function defaultDeadline(now) {
 }
 
 module.exports = {
+  parseTime,
+  apiTime,
+  toIso,
   formatDeadline,
   formatRelative,
   formatOverdue,

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="net.lab1024.sa.app.module.task.dao.TaskDao">
+
+    <sql id="baseColumns">
+        task_id, title, description, creator_id, completion_mode, status, start_time, deadline,
+        remind_minutes, remind_time, last_remind_time, deleted_flag, create_time, update_time
+    </sql>
+
+    <!-- 任务列表：单人单条 SQL 取完计数，避免循环查库 -->
+    <select id="queryPage" resultType="net.lab1024.sa.app.module.task.domain.vo.TaskListVO">
+        SELECT
+            t.task_id,
+            t.title,
+            t.status,
+            t.deadline,
+            t.completion_mode,
+            t.creator_id AS creatorId,
+            t.update_time,
+            (SELECT COUNT(1) FROM t_task_participant tp
+              WHERE tp.task_id = t.task_id AND tp.deleted_flag = #{param.deletedFlag}) AS participantCount,
+            (SELECT COUNT(1) FROM t_task_participant td
+              WHERE td.task_id = t.task_id AND td.deleted_flag = #{param.deletedFlag}
+                AND td.status = #{param.doneParticipantStatus}) AS doneCount,
+            (SELECT tm.status FROM t_task_participant tm
+              WHERE tm.task_id = t.task_id AND tm.member_id = #{param.memberId}
+                AND tm.deleted_flag = #{param.deletedFlag} LIMIT 1) AS myStatus,
+            (CASE WHEN t.deadline &lt; #{param.now}
+                   AND t.status IN
+                   <foreach collection="param.activeTaskStatusList" open="(" close=")" separator=","
+                            item="activeStatus">#{activeStatus}</foreach>
+                  THEN 1 ELSE 0 END) AS overdueFlag
+        FROM t_task t
+        WHERE t.deleted_flag = #{param.deletedFlag}
+        <choose>
+            <!-- 我发出的：只看我是委托人的 -->
+            <when test="param.query.role == 2">
+                AND t.creator_id = #{param.memberId}
+            </when>
+            <!-- 我收到的：只要我在参与者里 -->
+            <otherwise>
+                AND EXISTS (SELECT 1 FROM t_task_participant me
+                             WHERE me.task_id = t.task_id AND me.member_id = #{param.memberId}
+                               AND me.deleted_flag = #{param.deletedFlag})
+            </otherwise>
+        </choose>
+        <if test="param.query.status != null">
+            AND t.status = #{param.query.status}
+        </if>
+        <if test="param.query.overdueFlag != null and param.query.overdueFlag">
+            AND t.status IN
+            <foreach collection="param.activeTaskStatusList" open="(" close=")" separator=","
+                     item="overdueStatus">#{overdueStatus}</foreach>
+            AND t.deadline &lt; #{param.now}
+        </if>
+        <if test="param.query.keyword != null and param.query.keyword != ''">
+            AND INSTR(t.title, #{param.query.keyword})
+        </if>
+        ORDER BY t.update_time DESC, t.task_id DESC
+    </select>
+
+    <!-- 按主键查询 -->
+    <select id="queryById" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskEntity">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM t_task
+        WHERE task_id = #{taskId}
+        AND deleted_flag = #{deletedFlag}
+    </select>
+
+    <!-- 条件更新聚合状态：靠 WHERE 里的旧状态保证幂等 -->
+    <update id="updateStatus">
+        UPDATE t_task
+        SET status = #{status}, update_time = #{updateTime}
+        WHERE task_id = #{taskId}
+        AND deleted_flag = 0
+        AND status IN
+        <foreach collection="expectStatusList" open="(" close=")" separator="," item="expectStatus">
+            #{expectStatus}
+        </foreach>
+    </update>
+
+    <!-- 提醒信息 -->
+    <update id="updateRemind">
+        UPDATE t_task
+        <set>
+            update_time = #{updateTime},
+            remind_time = #{remindTime, jdbcType=TIMESTAMP},
+            <if test="lastRemindTime != null">
+                last_remind_time = #{lastRemindTime},
+            </if>
+        </set>
+        WHERE task_id = #{taskId}
+        AND deleted_flag = 0
+    </update>
+
+    <!-- 首页摘要：三个计数一次取回 -->
+    <select id="querySummaryCount" resultType="net.lab1024.sa.app.module.task.domain.vo.TaskSummaryVO">
+        SELECT
+            (SELECT COUNT(1)
+               FROM t_task_participant p
+               INNER JOIN t_task t ON p.task_id = t.task_id
+              WHERE p.member_id = #{memberId}
+                AND p.deleted_flag = #{deletedFlag}
+                AND p.status IN
+                <foreach collection="actionableParticipantStatus" open="(" close=")" separator=","
+                         item="pStatus">#{pStatus}</foreach>
+                AND t.deleted_flag = #{deletedFlag}
+                AND t.status IN
+                <foreach collection="activeTaskStatusList" open="(" close=")" separator=","
+                         item="tStatus">#{tStatus}</foreach>) AS assigneeCount,
+            (SELECT COUNT(1)
+               FROM t_task c
+              WHERE c.creator_id = #{memberId}
+                AND c.deleted_flag = #{deletedFlag}
+                AND c.status IN
+                <foreach collection="activeTaskStatusList" open="(" close=")" separator=","
+                         item="cStatus">#{cStatus}</foreach>) AS creatorCount,
+            (SELECT COUNT(1)
+               FROM t_task_participant p2
+               INNER JOIN t_task t2 ON p2.task_id = t2.task_id
+              WHERE p2.member_id = #{memberId}
+                AND p2.deleted_flag = #{deletedFlag}
+                AND p2.status IN
+                <foreach collection="actionableParticipantStatus" open="(" close=")" separator=","
+                         item="p2Status">#{p2Status}</foreach>
+                AND t2.deleted_flag = #{deletedFlag}
+                AND t2.status IN
+                <foreach collection="activeTaskStatusList" open="(" close=")" separator=","
+                         item="t2Status">#{t2Status}</foreach>
+                AND t2.deadline &lt; #{now}) AS overdueCount
+    </select>
+
+    <!-- 在等我的人 -->
+    <select id="queryWaitingUsers" resultType="net.lab1024.sa.app.module.task.domain.vo.TaskUserVO">
+        SELECT DISTINCT m.member_id AS memberId, m.nickname, m.avatar
+        FROM t_task_participant p
+        INNER JOIN t_task t ON p.task_id = t.task_id
+        INNER JOIN t_wx_member m ON m.member_id = t.creator_id
+        WHERE p.member_id = #{memberId}
+          AND p.deleted_flag = #{deletedFlag}
+          AND p.status IN
+          <foreach collection="actionableParticipantStatus" open="(" close=")" separator=","
+                   item="pStatus">#{pStatus}</foreach>
+          AND t.deleted_flag = #{deletedFlag}
+          AND t.status IN
+          <foreach collection="activeTaskStatusList" open="(" close=")" separator=","
+                   item="tStatus">#{tStatus}</foreach>
+          AND t.creator_id &lt;&gt; #{memberId}
+        ORDER BY m.member_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 我的统计 -->
+    <select id="queryStats" resultType="net.lab1024.sa.app.module.task.domain.vo.TaskStatsVO">
+        SELECT
+            (SELECT COUNT(1) FROM t_task tc
+              WHERE tc.creator_id = #{memberId} AND tc.deleted_flag = #{deletedFlag}) AS sentCount,
+            (SELECT COUNT(1) FROM t_task_participant p
+              WHERE p.member_id = #{memberId} AND p.deleted_flag = #{deletedFlag}) AS receivedCount,
+            (SELECT COUNT(1) FROM t_task_participant pd
+              WHERE pd.member_id = #{memberId} AND pd.deleted_flag = #{deletedFlag}
+                AND pd.status = #{doneStatus}) AS completedCount,
+            (SELECT COUNT(1)
+               FROM t_task_participant pon
+               INNER JOIN t_task ton ON pon.task_id = ton.task_id
+              WHERE pon.member_id = #{memberId}
+                AND pon.deleted_flag = #{deletedFlag}
+                AND pon.status = #{doneStatus}
+                AND ton.deleted_flag = #{deletedFlag}
+                AND pon.complete_time &lt;= ton.deadline) AS onTimeCount
+    </select>
+
+    <!-- 已到生效时间的预约任务 -->
+    <select id="queryScheduledToActivate" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskEntity">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM t_task
+        WHERE deleted_flag = 0
+        AND status = #{scheduledStatus}
+        AND start_time IS NOT NULL
+        AND start_time &lt;= #{now}
+        ORDER BY start_time ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 待下发提醒的任务 -->
+    <select id="queryRemindList" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskEntity">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM t_task
+        WHERE deleted_flag = #{deletedFlag}
+        AND remind_time IS NOT NULL
+        AND remind_time &lt;= #{now}
+        ORDER BY remind_time ASC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

@@ -52,6 +52,34 @@ const COMPLETION_MODE_MAP = {
   all: { label: '所有人都要完成', short: '全员', hint: '每个人都要做自己那份' },
 }
 
+/* ---------------- 与后端约定的数值枚举 ----------------
+ * 对应 sa-app 的 TaskStatusEnum / ParticipantStatusEnum / TaskRoleEnum / CompletionModeEnum。
+ * 展示层一律用字符串，只在 services/adapt.js 的边界上互转，
+ * 这样以后后端改数值也不用动页面。
+ */
+const TASK_STATUS_CODE = {
+  0: 'scheduled',
+  1: 'pending',
+  2: 'in_progress',
+  3: 'completed',
+  4: 'rejected',
+  5: 'cancelled',
+}
+
+const PARTICIPANT_STATUS_CODE = {
+  0: 'pending',
+  1: 'accepted',
+  2: 'done',
+  3: 'rejected',
+  4: 'skipped',
+}
+
+/** 1 我收到的（我是参与者）／2 我发出的（我是委托人） */
+const ROLE_CODE = { 1: 'assignee', 2: 'creator' }
+
+/** 1 任一人完成 ／ 2 全员完成 */
+const COMPLETION_MODE_CODE = { 1: 'any', 2: 'all' }
+
 /** 列表筛选选项：order 决定 chips 顺序 */
 const STATUS_FILTERS = [
   { key: 'all', label: '全部' },
@@ -60,6 +88,18 @@ const STATUS_FILTERS = [
   { key: 'completed', label: '已完成' },
   { key: 'overdue', label: '已逾期' },
 ]
+
+/**
+ * 列表筛选 → /api/task/query 的查询条件
+ * 逾期是派生状态（status IN (1,2) AND deadline < now），不是 status 的取值。
+ */
+const STATUS_FILTER_QUERY = {
+  all: {},
+  pending: { status: 1 },
+  in_progress: { status: 2 },
+  completed: { status: 3 },
+  overdue: { overdueFlag: true },
+}
 
 const REMIND_OPTIONS = [
   { key: 'none', label: '不提醒', minutes: 0 },
@@ -137,7 +177,12 @@ module.exports = {
   STATUS_MAP,
   PARTICIPANT_STATUS_MAP,
   COMPLETION_MODE_MAP,
+  TASK_STATUS_CODE,
+  PARTICIPANT_STATUS_CODE,
+  ROLE_CODE,
+  COMPLETION_MODE_CODE,
   STATUS_FILTERS,
+  STATUS_FILTER_QUERY,
   REMIND_OPTIONS,
   resolveDisplayStatus,
   statusStyle,

@@ -1,9 +1,12 @@
 /**
  * 订阅消息授权
+ *
  * 策略见方案 7.2：在「发布 / 接受 / 完成 / 打开设置」四个高意愿节点请求，攒下发额度。
  * 授权失败或被拒一律不阻断主流程。
+ *
+ * 说明：授权结果只保留在本地。服务端目前不发订阅消息（投递能力未接），
+ * 所以这里不向服务端上报，避免调用不存在的接口。
  */
-const { http } = require('../utils/request')
 const config = require('../config/index')
 
 const N = config.NOTIFY
@@ -18,13 +21,13 @@ function idsOf(keys) {
 
 /**
  * @param {string[]} keys 例如 ['TASK_COMPLETED','TASK_REMIND']
- * @returns {Promise<{accepted:string[], raw:object}>}
+ * @returns {Promise<{accepted:string[], raw:object, skipped?:boolean}>}
  */
 function requestSubscribe(keys) {
   const list = keys || []
   const tmplIds = idsOf(list)
 
-  // 模板 id 未配置（本地 Mock 阶段）：直接返回空结果，不打断流程
+  // 模板 id 未配置：直接返回空结果，不打断流程
   if (!tmplIds.length) {
     return Promise.resolve({ accepted: [], raw: {}, skipped: true })
   }
@@ -34,24 +37,10 @@ function requestSubscribe(keys) {
       tmplIds,
       success: (res) => {
         const accepted = list.filter((k) => res[N[k].templateId] === 'accept')
-        report(list, res)
         resolve({ accepted, raw: res })
       },
       fail: () => resolve({ accepted: [], raw: {} }),
     })
-  })
-}
-
-/** 授权结果上报服务端记账，用于设置页提示「额度不足」 */
-function report(keys, res) {
-  keys.forEach((k) => {
-    const id = N[k] && N[k].templateId
-    http
-      .post('/notify/subscribe', {
-        templateKey: k,
-        accepted: id ? res[id] === 'accept' : false,
-      })
-      .catch(() => {})
   })
 }
 

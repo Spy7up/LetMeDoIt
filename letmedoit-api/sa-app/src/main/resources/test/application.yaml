@@ -1,0 +1,27 @@
+#############################################################################################################
+#  sa-app 小程序端独有配置，通用配置见 sa-base 项目中的 sa-base.yaml
+#############################################################################################################
+
+project:
+  name: sa-app
+  log-directory: ${localPath:/home}/logs/smart_admin_v3/${project.name}/${spring.profiles.active}
+
+server:
+  port: 1025
+  servlet:
+    context-path: /
+
+spring:
+  profiles:
+    active: '@profiles.active@'
+
+wx:
+  miniapp:
+    mock: false
+    appid: ${WX_MINIAPP_APPID:}
+    secret: ${WX_MINIAPP_SECRET:}
+    timeout: 5000
+    miniprogram-state: trial
+    # 生产必须配置模板白名单，防止任意模板被下发
+    subscribe-template-ids:
+      - ${WX_SUBSCRIBE_TEMPLATE_ID_1:}

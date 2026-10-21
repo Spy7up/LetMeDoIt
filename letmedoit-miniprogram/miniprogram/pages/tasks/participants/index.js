@@ -105,12 +105,13 @@ Page({
       return
     }
 
-    // 追加模式：直接写接口
+    // 追加模式：一次请求带全部 memberIds（后端 /participant/add 接受数组）
     this.setData({ submitting: true })
     try {
-      for (let i = 0; i < picked.length; i++) {
-        await taskApi.addParticipant(this.taskId, picked[i].id)
-      }
+      await taskApi.addParticipants(
+        this.taskId,
+        picked.map((u) => u.id)
+      )
       getApp().globalData.needRefresh = true
       wx.showToast({ title: '加进来了', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 500)

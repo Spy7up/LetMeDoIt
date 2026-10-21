@@ -1,12 +1,22 @@
 /**
  * 统一请求层
- * 职责：拆信封、注入 token、401 静默重登一次、错误归一化、Mock 分流。
- * 页面与 services 都不允许直接使用 wx.request。
+ *
+ * 职责（其余地方一律不许出现 wx.request）：
+ *  1. 拼 BASE_URL、注入 App-Token
+ *  2. 拆 sa-app 的响应信封 { code, level, msg, ok, data }
+ *  3. 登录态失效（30007）时用 wx.login 静默换一次 token 并重放
+ *  4. 把后端错误统一成带 code 的 Error，页面只读 err.message
+ *
+ * 注意：sa-app 的错误文案字段是 msg，不是 message。
  */
 const config = require('../config/index')
 
-const TOKEN_KEY = 'lmd_access_token'
-const REFRESH_KEY = 'lmd_refresh_token'
+const TOKEN_KEY = 'lmd_app_token'
+
+/** 后端登录态失效错误码，见 UserErrorCode.LOGIN_STATE_INVALID */
+const CODE_LOGIN_INVALID = 30007
+/** 本地兜底：网络层失败 */
+const CODE_NETWORK = -1
 
 let reloginPromise = null
 
@@ -16,120 +26,120 @@ function getToken() {
   return wx.getStorageSync(TOKEN_KEY) || ''
 }
 
-function setSession(session) {
-  wx.setStorageSync(TOKEN_KEY, session.accessToken || '')
-  wx.setStorageSync(REFRESH_KEY, session.refreshToken || '')
+function setToken(token) {
+  wx.setStorageSync(TOKEN_KEY, token || '')
 }
 
 function clearSession() {
   wx.removeStorageSync(TOKEN_KEY)
-  wx.removeStorageSync(REFRESH_KEY)
+}
+
+function authHeader() {
+  const token = getToken()
+  if (!token) return {}
+  const value = config.TOKEN_PREFIX ? config.TOKEN_PREFIX + ' ' + token : token
+  return { [config.TOKEN_HEADER]: value }
 }
 
 /* ---------------- 错误归一化 ---------------- */
 
-function makeError(payload, fallbackMessage) {
-  const err = new Error(payload.message || fallbackMessage || '请求失败')
-  err.code = payload.code == null ? -1 : payload.code
-  err.field = payload.field || ''
-  err.traceId = payload.traceId || ''
-  err.raw = payload
+function makeError(payload, fallback) {
+  const err = new Error((payload && payload.msg) || fallback || '请求失败')
+  err.code = payload && payload.code != null ? payload.code : CODE_NETWORK
+  err.raw = payload || null
   return err
 }
 
 /* ---------------- 底层发送 ---------------- */
 
+/**
+ * 发一次请求，永远 resolve 出「信封」对象（业务失败也走 resolve）
+ * 只有网络层失败才 reject。
+ *
+ * @param {{url:string, method?:string, data?:object, auth?:boolean, timeout?:number}} options
+ * @returns {Promise<{code:number, msg?:string, data?:any}>}
+ */
 function send(options) {
-  const { url, method = 'GET', data, header = {}, timeout } = options
-
-  if (config.USE_MOCK) {
-    // 延迟 require，避免 mock 与 request 循环依赖
-    const mock = require('../mock/server')
-    return mock.handle({ url, method, data })
-  }
+  const { url, method = 'GET', data, auth = true, timeout } = options
+  const header = { 'Content-Type': 'application/json' }
+  if (auth) Object.assign(header, authHeader())
 
   return new Promise((resolve, reject) => {
-    const token = getToken()
     wx.request({
       url: config.BASE_URL + url,
       method,
       data,
       timeout: timeout || config.TIMEOUT,
-      header: Object.assign(
-        {
-          'Content-Type': 'application/json',
-          Authorization: token ? 'Bearer ' + token : '',
-        },
-        header
-      ),
+      header,
       success(res) {
-        if (res.statusCode === 401) {
-          return resolve({ code: 40100, message: '登录已失效' })
+        const body = res.data
+        if (res.statusCode >= 200 && res.statusCode < 300 && body && typeof body.code === 'number') {
+          return resolve(body)
         }
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          return resolve(res.data)
-        }
-        resolve(
-          Object.assign(
-            { code: res.statusCode * 100 || 50000, message: '服务开小差了' },
-            typeof res.data === 'object' ? res.data : {}
-          )
-        )
+        // 非 2xx 或不是标准信封（网关 502、域名未配置等），统一按网络错误处理
+        resolve({
+          code: res.statusCode === 401 ? CODE_LOGIN_INVALID : CODE_NETWORK,
+          msg: (body && body.msg) || '服务开小差了，请稍后重试',
+          data: null,
+        })
       },
       fail(err) {
-        reject(
-          makeError(
-            { code: -1, message: '网络不可用，请检查网络后重试' },
-            (err && err.errMsg) || ''
-          )
-        )
+        reject(makeError(null, (err && err.errMsg) || '网络不可用，请检查网络后重试'))
       },
     })
   })
 }
 
-/* ---------------- 静默重登 ---------------- */
+/* ---------------- 静默登录 ---------------- */
 
-function relogin() {
-  if (reloginPromise) return reloginPromise
-
-  reloginPromise = new Promise((resolve, reject) => {
+function wxLoginCode() {
+  return new Promise((resolve, reject) => {
     wx.login({
-      success(res) {
-        if (!res.code) return reject(makeError({ code: 40100, message: '登录失败' }))
-        send({ url: '/auth/login', method: 'POST', data: { code: res.code } })
-          .then((envelope) => {
-            if (envelope.code !== 0) {
-              return reject(makeError(envelope))
-            }
-            setSession(envelope.data)
-            resolve(envelope.data)
-          })
-          .catch(reject)
-      },
-      fail() {
-        reject(makeError({ code: 40100, message: '登录失败' }))
-      },
-    }).catch((err) => {
-      reloginPromise = null
-      throw err
+      success: (res) => (res.code ? resolve(res.code) : reject(makeError(null, '微信登录失败'))),
+      fail: () => reject(makeError(null, '微信登录失败')),
     })
   })
+}
 
-  reloginPromise.catch(() => {})
+/**
+ * 用 wx.login 的 code 换 token
+ * 登录接口本身免鉴权，所以 auth: false，避免递归
+ *
+ * @returns {Promise<{token:string, tokenName:string, member:object, newUser:boolean}>}
+ */
+async function silentLogin() {
+  const code = await wxLoginCode()
+  const envelope = await send({ url: '/api/auth/login', method: 'POST', data: { code }, auth: false })
+  if (envelope.code !== 0 || !envelope.data) throw makeError(envelope, '登录失败')
+  setToken(envelope.data.token)
+  return envelope.data
+}
+
+function relogin() {
+  if (!reloginPromise) {
+    // 结束后立刻释放，否则下次 token 再过期会复用一个已完成的 promise，等于没重登
+    reloginPromise = silentLogin().then(
+      (res) => {
+        reloginPromise = null
+        return res
+      },
+      (err) => {
+        reloginPromise = null
+        throw err
+      }
+    )
+  }
   return reloginPromise
 }
 
 /* ---------------- 对外入口 ---------------- */
 
 /**
- * @param {{url:string, method?:string, data?:object, loading?:string, auth?:boolean}} options
- * @returns {Promise<any>} 直接返回 data 字段
+ * @param {{url:string, method?:string, data?:object, auth?:boolean, loading?:string}} options
+ * @returns {Promise<any>} 直接给出信封里的 data
  */
 async function request(options, retried) {
-  if (options.loading) {
-    wx.showLoading({ title: options.loading, mask: true })
-  }
+  if (options.loading) wx.showLoading({ title: options.loading, mask: true })
 
   let envelope
   try {
@@ -140,19 +150,19 @@ async function request(options, retried) {
 
   if (envelope.code === 0) return envelope.data
 
-  // token 失效：静默重登并重放一次
-  if (envelope.code === 40100 && !retried) {
+  // 登录态失效：静默换 token 后重放一次，用户无感
+  if (envelope.code === CODE_LOGIN_INVALID && !retried) {
     try {
       await relogin()
     } catch (e) {
       clearSession()
       gotoLogin()
-      throw makeError({ code: 40100, message: '请先登录' })
+      throw makeError({ code: CODE_LOGIN_INVALID, msg: '登录已失效，请重新进入' })
     }
     return request(options, true)
   }
 
-  if (envelope.code === 40100) {
+  if (envelope.code === CODE_LOGIN_INVALID) {
     clearSession()
     gotoLogin()
   }
@@ -167,14 +177,6 @@ function gotoLogin() {
   wx.reLaunch({ url: '/pages/launch/index?redirect=' + encodeURIComponent(redirect) })
 }
 
-const http = {
-  get: (url, params, extra) =>
-    request(Object.assign({ url: withQuery(url, params), method: 'GET' }, extra)),
-  post: (url, data, extra) => request(Object.assign({ url, method: 'POST', data }, extra)),
-  patch: (url, data, extra) => request(Object.assign({ url, method: 'PATCH', data }, extra)),
-  del: (url, data, extra) => request(Object.assign({ url, method: 'DELETE', data }, extra)),
-}
-
 function withQuery(url, params) {
   if (!params) return url
   const query = Object.keys(params)
@@ -185,11 +187,20 @@ function withQuery(url, params) {
   return url + (url.indexOf('?') >= 0 ? '&' : '?') + query
 }
 
+const http = {
+  get: (url, params, extra) =>
+    request(Object.assign({ url: withQuery(url, params), method: 'GET' }, extra)),
+  post: (url, data, extra) => request(Object.assign({ url, method: 'POST', data }, extra)),
+}
+
 module.exports = {
   request,
   http,
   getToken,
-  setSession,
+  setToken,
   clearSession,
+  silentLogin,
+  relogin,
   withQuery,
+  CODE_LOGIN_INVALID,
 }

@@ -1,3 +1,4 @@
+const taskApi = require('../../../services/task')
 const { presentUser } = require('../../../utils/present')
 
 Page({
@@ -33,14 +34,19 @@ Page({
   async load() {
     try {
       const user = await getApp().refreshUser()
-      const s = user.stats || {}
+      this.setData({ user: presentUser(user) })
+    } catch (e) {
+      // 资料失败就保留上一次，统计继续拉
+    }
+
+    try {
+      const s = await taskApi.stats()
       this.setData({
-        user: presentUser(user),
         stats: s,
         rateText: Math.round((s.onTimeRate || 0) * 100) + '%',
       })
     } catch (e) {
-      // 静默失败，保留上一次的资料
+      // 统计失败不影响页面主体
     }
   },
 
