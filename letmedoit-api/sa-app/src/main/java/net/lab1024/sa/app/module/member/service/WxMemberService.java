@@ -126,7 +126,7 @@ public class WxMemberService {
         // 首登就把微信资料写进去；占位资料（未授权）整体走兜底，头像也不留灰图
         boolean placeholder = isWechatPlaceholder(nickname);
         entity.setNickname(placeholder ? randomNickname() : StrUtil.sub(StrUtil.trimToEmpty(nickname), 0, NICKNAME_MAX_LENGTH));
-        entity.setAvatar(placeholder ? StrUtil.EMPTY : StrUtil.trimToEmpty(avatar));
+        entity.setAvatar(placeholder || !isRemoteAvatar(avatar) ? StrUtil.EMPTY : StrUtil.trimToEmpty(avatar));
 
         try {
             wxMemberDao.insert(entity);
@@ -169,6 +169,24 @@ public class WxMemberService {
     }
 
     /**
+     * 头像是否是可给别人看的公网地址
+     * <p>
+     * 小程序 chooseAvatar 返回的是本机临时路径（wxfile:// / http://tmp/），
+     * 存进库换台设备打开就是裂图，所以只接受 http(s) 且排除临时目录。
+     * 头像的展示兜底不在服务端，而是小程序端「昵称末字 + 色块」，永远不会空。
+     */
+    public static boolean isRemoteAvatar(String avatar) {
+        String url = StrUtil.trimToEmpty(avatar);
+        if (StrUtil.isBlank(url)) {
+            return false;
+        }
+        if (url.startsWith("wxfile://") || url.startsWith("http://tmp") || url.contains("/tmp/")) {
+            return false;
+        }
+        return url.startsWith("http://") || url.startsWith("https://");
+    }
+
+    /**
      * 补齐老会员缺失的昵称（有值不动，避免覆盖用户自己设定的）
      */
     private void ensureProfile(WxMemberEntity entity, String nickname, String avatar) {
@@ -177,7 +195,9 @@ public class WxMemberService {
         }
         boolean needName = isWechatPlaceholder(entity.getNickname());
         boolean needAvatar = StrUtil.isBlank(entity.getAvatar()) && StrUtil.isNotBlank(avatar);
-        if (!needName && !needAvatar) {
+        // 历史脏数据：早期版本把 chooseAvatar 的临时路径当头像 URL 存了进来，登录时顺手洗掉
+        boolean dirtyAvatar = StrUtil.isNotBlank(entity.getAvatar()) && !isRemoteAvatar(entity.getAvatar());
+        if (!needName && !needAvatar && !dirtyAvatar) {
             return;
         }
 
@@ -191,6 +211,10 @@ public class WxMemberService {
         if (needAvatar) {
             update.setAvatar(StrUtil.trimToEmpty(avatar));
             entity.setAvatar(update.getAvatar());
+        } else if (dirtyAvatar) {
+            log.info("清洗历史头像（临时路径不入库）, memberId={}", entity.getMemberId());
+            update.setAvatar(StrUtil.EMPTY);
+            entity.setAvatar(StrUtil.EMPTY);
         }
         update.setUpdateTime(LocalDateTime.now());
         wxMemberDao.updateById(update);

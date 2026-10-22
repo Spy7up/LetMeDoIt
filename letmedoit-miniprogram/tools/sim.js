@@ -21,7 +21,7 @@ const contract = require('./contract-server')
 /* ---------------- 环境桩 ---------------- */
 
 const storage = {}
-const calls = { toast: [], nav: [], modal: [] }
+const calls = { toast: [], nav: [], modal: [], clipboard: [] }
 let appInstance = null
 let lastPageConfig = null
 let lastHeaders = {}
@@ -104,7 +104,10 @@ global.wx = {
   chooseMedia: (o) =>
     o.success({ tempFiles: [{ tempFilePath: 'wxfile://tmp_a.jpg' }, { tempFilePath: 'wxfile://tmp_b.jpg' }] }),
   previewImage: () => {},
-  setClipboardData: (o) => o.success && o.success(),
+  setClipboardData: (o) => {
+    calls.clipboard.push(o.data)
+    if (o.success) o.success()
+  },
 }
 
 global.App = (cfg) => {
@@ -649,8 +652,26 @@ async function run() {
   await profile.save()
   await wait(400)
   check(appInstance.globalData.user.nickname === '小林同学', '昵称改动生效 ' + appInstance.globalData.user.nickname)
-  check(appInstance.globalData.user.avatarUrl === 'wxfile://tmp_me.jpg', '头像改动生效')
+  // 头像只做本机预览：临时路径不写库，默认头像是「名字末字 + 色块」，永远不为空
+  check(!appInstance.globalData.user.avatarUrl, '临时路径头像不入库')
+  check(storage['lmd_avatar'] === 'wxfile://tmp_me.jpg', '头像只存本机预览')
+  const presentUtil = require(path.join(ROOT, 'utils/present'))
+  const shown = presentUtil.presentUser(appInstance.globalData.user)
+  check(!shown.avatarUrl && !!shown.avatarStyle && !!shown.initial, '没有可用头像时也一定有默认头像')
   check(storage['lmd_user'] && storage['lmd_user'].nickname === '小林同学', '用户资料已缓存到本地')
+
+  // 登录后的补资料引导：可跳过，跳过直接进任务首页
+  const guide = loadPage('pages/mine/profile/index')
+  const navCount = calls.nav.length
+  await guide.onLoad({ from: 'launch' })
+  await wait(200)
+  check(guide.data.guide === true, '登录引导模式生效')
+  guide.skip()
+  await wait(800)
+  check(
+    calls.nav.slice(navCount).indexOf('/pages/tasks/index/index') >= 0,
+    '跳过引导回到任务首页'
+  )
 
   // 用户拒绝授权：登录没带微信资料且库里也没昵称 -> 「用户XXXX」
   const meMember = server.getState().members.find((m) => m.memberId === 1)
@@ -661,10 +682,58 @@ async function run() {
   check(/^用户[A-Z0-9]{4}$/.test(anon.nickname || ''), '拒绝授权时兜底昵称 ' + anon.nickname)
   check(!!anon.nickname && anon.nickname !== '微信用户', '不会把「微信用户」当昵称')
 
-  const invite = loadPage('pages/friends/invite/index')
-  invite.onLoad({})
+  // 好友页内嵌「添加好友」：邀请码、复制、输码加人都不再跳二级页
+  const friendsPage = loadPage('pages/friends/index/index')
+  friendsPage.onLoad({})
+  await wait(400)
+  check(friendsPage.data.inviteCode === 'K7M2QX', '好友页直接显示邀请码 ' + friendsPage.data.inviteCode)
+  check(
+    !!friendsPage.data.sharePath && friendsPage.data.sharePath.indexOf('invite=') > 0,
+    '分享路径就绪 ' + friendsPage.data.sharePath
+  )
+
+  friendsPage.copyCode()
+  check(calls.clipboard.indexOf('K7M2QX') >= 0, '复制按钮把邀请码写进剪贴板')
+
+  friendsPage.onInputCode(evt({}, { value: 'ab' }))
+  check(friendsPage.data.inputCode === 'AB', '输入自动转大写 ' + friendsPage.data.inputCode)
+  const toastBeforeShort = calls.toast.length
+  await friendsPage.applyCode()
+  check(
+    calls.toast.slice(toastBeforeShort).some((t) => t.indexOf('6 位') >= 0),
+    '不足 6 位被拦：' + calls.toast[calls.toast.length - 1]
+  )
+
+  // 造一个还没加好友的人，用他的邀请码在好友页就地加上
+  const st = server.getState()
+  let stranger = st.members.find((m) => m.memberId === 99)
+  if (!stranger) {
+    stranger = { memberId: 99, nickname: '远方亲戚', avatar: '', inviteCode: 'ZZ9Y8X', gender: 0 }
+    st.members.push(stranger)
+  } else {
+    stranger.inviteCode = 'ZZ9Y8X'
+  }
+  const friendCountBefore = friendsPage.data.friends.length
+  friendsPage.onInputCode(evt({}, { value: 'zz9y8x' }))
+  await friendsPage.applyCode()
+  await wait(600)
+  check(friendsPage.data.inputCode === '', '加成功后输入框清空')
+  check(
+    friendsPage.data.friends.length === friendCountBefore + 1,
+    '新好友原地出现在列表：' + friendCountBefore + ' → ' + friendsPage.data.friends.length
+  )
+  check(calls.nav.every((u) => u.indexOf('friends/invite') < 0), '全程没有跳二级页')
+
+  // 错误码：留在当前页提示，不清输入框以外的状态
+  friendsPage.onInputCode(evt({}, { value: 'ZZZZZZ' }))
+  const toastBeforeBad = calls.toast.length
+  await friendsPage.applyCode()
   await wait(300)
-  check(invite.data.inviteCode === 'K7M2QX', '邀请页邀请码 ' + invite.data.inviteCode)
+  check(
+    calls.toast.slice(toastBeforeBad).some((t) => t.indexOf('邀请码') >= 0),
+    '错误邀请码有提示：' + calls.toast[calls.toast.length - 1]
+  )
+  check(friendsPage.data.applying === false, '失败后按钮恢复可点')
 
 
   console.log('\n[12] 登录态失效自动重登')

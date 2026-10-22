@@ -166,8 +166,10 @@ public class WxAuthService {
     /**
      * 更新昵称头像
      * <p>
-     * 头像只由小程序端的 chooseAvatar 提供（微信头像/微信内相册），不提供文件上传通道；
-     * 昵称同理走 input type=nickname。服务端只做长度与空值校验。
+     * 昵称走小程序端 input type=nickname；头像走 chooseAvatar。
+     * 注意 chooseAvatar 给的是**本机临时路径**（wxfile:// / http://tmp/），
+     * 不是可访问 URL，所以服务端只保留公网 http(s) 地址，其余一律存空，
+     * 由小程序端「昵称末字 + 色块」默认头像兜底，避免换设备后裂图。
      */
     public ResponseDTO<WxMemberVO> updateProfile(String nickname, String avatar) {
         RequestMember current = AppRequestUtil.getMember();
@@ -185,6 +187,10 @@ public class WxAuthService {
         String avatarUrl = StrUtil.trimToEmpty(avatar);
         if (avatarUrl.length() > AVATAR_MAX_LENGTH) {
             return ResponseDTO.userErrorParam("头像地址过长，请重新选择");
+        }
+        if (!WxMemberService.isRemoteAvatar(avatarUrl)) {
+            // 临时路径 / 空值 / 非法地址：不落库，前端用默认头像
+            avatarUrl = StrUtil.EMPTY;
         }
 
         wxMemberService.updateProfile(current.getMemberId(), name, avatarUrl);

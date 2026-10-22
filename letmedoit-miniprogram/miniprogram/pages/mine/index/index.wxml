@@ -2,7 +2,7 @@
   <view class="page-body">
     <view class="profile" wx:if="{{user}}" bindtap="goProfile">
       <view class="av av-56" style="{{user.avatarStyle}}">
-        <image wx:if="{{user.avatarUrl}}" class="av-img" src="{{user.avatarUrl}}" mode="aspectFill" />
+        <image wx:if="{{user.avatarUrl}}" class="av-img" src="{{user.avatarUrl}}" mode="aspectFill" binderror="onAvatarError" />
         <text wx:else>{{user.initial}}</text>
       </view>
       <view class="profile-txt">

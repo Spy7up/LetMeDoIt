@@ -13,34 +13,31 @@ Page({
     this.redirect = options.redirect ? decodeURIComponent(options.redirect) : ''
     this.invite = options.invite || ''
     this.setData({ statusBarHeight: getApp().globalData.statusBarHeight })
-    // 已经登录过：静默续登，不再弹授权
+    // 已经登录过：静默续登，不走任何授权/引导
     if (getToken()) this.login(true)
   },
 
-  /** 按钮点击：先要微信资料，再登录 */
+  /** 按钮点击：登录 */
   onTapLogin() {
     this.login(false)
   },
 
   /**
    * 登录
-   * @param {boolean} silent true 表示已登录用户续登，不弹授权框
+   *
+   * 这里**不再**调 wx.getUserProfile：微信 2022-10 起该接口只返回
+   * 「微信用户」+ 灰色占位头像，拿不到真实资料，调了只是浪费一次交互。
+   * 头像昵称改为登录后一屏引导（pages/mine/profile/index?from=launch），
+   * 使用官方唯一可用的 chooseAvatar + input type=nickname，且可跳过。
+   *
+   * @param {boolean} silent true 表示已登录用户续登，不引导补资料
    */
   async login(silent) {
     if (this.data.loading) return
     this.setData({ loading: true, tip: '' })
 
-    let profile = null
-    if (!silent) {
-      profile = await this.askWechatProfile()
-      if (!profile) {
-        // 用户拒绝授权：照常登录，服务端会给「用户XXXX」兜底昵称
-        this.setData({ tip: '可以先用默认名字，之后在「我的」里换微信头像' })
-      }
-    }
-
     try {
-      await auth.login(profile)
+      const me = await auth.login()
       if (this.invite) {
         try {
           await friendApi.acceptInviteCode(this.invite)
@@ -50,38 +47,16 @@ Page({
       }
       const user = await getApp().refreshUser()
       if (!user) throw new Error('登录失败，再试一次')
+
+      // 只有首次注册才引导，老用户不打扰；从邀请链接进来的先看任务，别打断
+      if (!silent && me && me.newUser && !this.invite) {
+        wx.redirectTo({ url: '/pages/mine/profile/index?from=launch' })
+        return
+      }
       this.go()
     } catch (e) {
       this.setData({ loading: false, tip: e.message || '登录失败，再试一次' })
     }
-  },
-
-  /**
-   * 拉一次微信昵称头像
-   * 微信 2022-10 之后不再返回真实资料（只有「微信用户」+ 灰头像），
-   * 真机上等价于拿不到；拿到占位值也当没授权，交给服务端兜底。
-   * @returns {Promise<{nickname:string, avatarUrl:string}|null>}
-   */
-  askWechatProfile() {
-    return new Promise((resolve) => {
-      if (!wx.getUserProfile) {
-        resolve(null)
-        return
-      }
-      wx.getUserProfile({
-        desc: '用于在好友之间显示你的头像和昵称',
-        success: (res) => {
-          const info = res.userInfo || {}
-          const nickname = (info.nickName || '').trim()
-          if (!nickname || nickname === '微信用户') {
-            resolve(null)
-            return
-          }
-          resolve({ nickname, avatarUrl: info.avatarUrl || '' })
-        },
-        fail: () => resolve(null),
-      })
-    })
   },
 
   go() {

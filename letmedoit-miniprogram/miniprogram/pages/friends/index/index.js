@@ -7,6 +7,9 @@ Page({
     friends: [],
     requests: [],
     inviteCode: '',
+    sharePath: '',
+    inputCode: '',
+    applying: false,
     keyword: '',
     loading: true,
   },
@@ -59,6 +62,7 @@ Page({
           })
         ),
         inviteCode: invite.inviteCode,
+        sharePath: invite.sharePath || '',
         loading: false,
       })
     } catch (e) {
@@ -95,8 +99,45 @@ Page({
     }
   },
 
-  goInvite() {
-    wx.navigateTo({ url: '/pages/friends/invite/index' })
+  copyCode() {
+    const code = this.data.inviteCode
+    if (!code) return
+    wx.setClipboardData({
+      data: code,
+      success: () => wx.showToast({ title: '已复制，发给家人吧', icon: 'none' }),
+    })
+  },
+
+  onInputCode(e) {
+    this.setData({ inputCode: String(e.detail.value || '').toUpperCase() })
+  },
+
+  /** 输对方的邀请码直接加好友，成功后原地刷新列表 */
+  async applyCode() {
+    if (this.data.applying) return
+    const code = this.data.inputCode.trim()
+    if (code.length !== 6) {
+      wx.showToast({ title: '邀请码是 6 位', icon: 'none' })
+      return
+    }
+    this.setData({ applying: true })
+    try {
+      const res = await friendApi.acceptInviteCode(code)
+      wx.showToast({ title: res.message, icon: 'none' })
+      getApp().globalData.needRefresh = true
+      this.setData({ inputCode: '' })
+      this.load()
+    } catch (e) {
+      wx.showToast({ title: e.message || '邀请码不对', icon: 'none' })
+    }
+    this.setData({ applying: false })
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '加我一起用「让我做」，省得忘事',
+      path: this.data.sharePath || '/pages/tasks/index/index',
+    }
   },
 
   goDetail(e) {

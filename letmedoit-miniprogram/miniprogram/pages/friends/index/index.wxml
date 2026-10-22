@@ -1,13 +1,38 @@
 <view class="page">
   <view class="page-body">
-    <!-- 邀请码 -->
-    <view class="invite" bindtap="goInvite">
-      <view class="invite-badge">邀</view>
-      <view class="invite-txt">
-        <text class="invite-title">把邀请码发给家人</text>
-        <text class="invite-sub">输码或转发卡片，都能加你</text>
+    <!-- 添加好友：邀请码 + 输码加人，全在这一张卡里，不用再进二级页 -->
+    <view class="add-card">
+      <view class="add-head">
+        <text class="add-title">添加好友</text>
+        <text class="add-sub">互相加好友后才能派活</text>
       </view>
-      <text class="invite-code">{{inviteCode || '——'}}</text>
+
+      <view class="code-row">
+        <view class="code-main">
+          <text class="code-cap">我的邀请码</text>
+          <text class="code-val">{{inviteCode || '——'}}</text>
+        </view>
+        <view class="code-ops">
+          <view class="cap cap-ghost" bindtap="copyCode">复制</view>
+          <button class="cap cap-primary" open-type="share">发给好友</button>
+        </view>
+      </view>
+
+      <view class="apply-row">
+        <input
+          class="apply-input"
+          placeholder="输入对方的 6 位邀请码"
+          placeholder-class="ph"
+          maxlength="6"
+          value="{{inputCode}}"
+          confirm-type="done"
+          bindinput="onInputCode"
+          bindconfirm="applyCode"
+        />
+        <view class="apply-btn {{applying ? 'disabled' : ''}}" bindtap="applyCode">
+          {{applying ? '添加中' : '添加'}}
+        </view>
+      </view>
     </view>
 
     <!-- 好友请求 -->
@@ -58,7 +83,7 @@
       </view>
       <text class="empty-title">还没有好友</text>
       <text class="empty-sub">把邀请码发给家人，\n他们输一次就能加你。</text>
-      <view class="btn btn-ghost empty-btn" bindtap="goInvite">分享邀请</view>
+      <button class="btn btn-ghost empty-btn" open-type="share">分享邀请</button>
     </view>
 
     <view class="tab-space"></view>

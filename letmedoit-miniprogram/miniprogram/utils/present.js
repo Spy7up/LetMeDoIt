@@ -3,6 +3,7 @@
  * 页面里不做格式化计算，全部在这里一次算好（也便于以后换 UI 时复用）。
  */
 const { formatDeadline, formatRelative, formatOverdue } = require('./format')
+const { isRemote } = require('./avatar')
 const { STATUS_MAP, PARTICIPANT_STATUS_MAP, COMPLETION_MODE_MAP } = require('../constants/task')
 
 const PALETTE = [
@@ -23,13 +24,21 @@ function hash(str) {
   return h
 }
 
-/** 头像：取昵称末字当首图，底色由 id 稳定散列 */
+/**
+ * 头像：取昵称末字当首图，底色由 id 稳定散列
+ * <p>
+ * 默认头像是「字 + 色块」，**任何情况下都有值**，不允许出现空白头像：
+ * 只有公网 http(s) 地址才交给 <image>，临时路径（wxfile:// / http://tmp/）和空值
+ * 一律清成空串，让模板走色块分支。详见 utils/avatar.js。
+ */
 function presentUser(u) {
   if (!u) return null
   const p = PALETTE[hash(u.id || u.userId) % PALETTE.length]
   const nickname = u.nickname || '有人'
   return Object.assign({}, u, {
-    initial: nickname.slice(-1),
+    nickname,
+    avatarUrl: isRemote(u.avatarUrl) ? u.avatarUrl : '',
+    initial: nickname.slice(-1) || '?',
     avatarStyle: 'background:' + p.bg + ';color:' + p.fg,
   })
 }

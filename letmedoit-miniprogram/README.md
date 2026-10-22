@@ -39,7 +39,7 @@ letmedoit/
 │   │   │   │   ├── complete/    # 完成我这份（备注 + 凭证）
 │   │   │   │   └── participants/ # 选参与者 / 追加参与者
 │   │   │   ├── messages/index/  # 服务通知中心（与微信同构）
-│   │   │   ├── friends/         # 好友 / 邀请 / 好友详情
+│   │   │   ├── friends/         # 好友（含内嵌添加好友）/ 好友详情
 │   │   │   └── mine/            # 我的 / 头像昵称 / 提醒设置
 │   │   ├── services/            # 领域方法：auth / friend / task / notice / notify + adapt（VO→页面模型）
 │   │   ├── utils/               # request 封装、格式化、展示层派生

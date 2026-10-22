@@ -9,7 +9,6 @@
     "pages/messages/index/index",
     "pages/friends/index/index",
     "pages/friends/detail/index",
-    "pages/friends/invite/index",
     "pages/mine/index/index",
     "pages/mine/profile/index",
     "pages/mine/settings/index"

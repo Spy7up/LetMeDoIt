@@ -53,3 +53,31 @@
 .ph {
   color: var(--ink3);
 }
+
+/* 登录后的补资料引导（from=launch） */
+.guide-head {
+  padding: 32rpx 4rpx 8rpx;
+}
+
+.guide-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.guide-sub {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--ink3);
+}
+
+.skip {
+  margin-top: 18rpx;
+  padding: 18rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--ink3);
+}

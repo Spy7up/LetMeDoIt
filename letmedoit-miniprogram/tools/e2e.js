@@ -483,7 +483,15 @@ async function run() {
     avatarUrl: 'wxfile://tmp_avatar.jpg',
   })
   check(changed.nickname === '改过的名字', '可以再次修改昵称 ' + changed.nickname)
-  check(changed.avatarUrl === 'wxfile://tmp_avatar.jpg', '头像更新成功')
+  // chooseAvatar 给的是本机临时路径，不是可访问 URL，服务端必须丢掉，否则换设备就是裂图
+  check(!changed.avatarUrl, '临时路径头像不入库（由默认头像兜底）')
+
+  // 但公网地址要能存：以后接了文件上传就走这条路
+  const remote = await api('auth').updateProfile({
+    nickname: '改过的名字',
+    avatarUrl: 'https://thirdwx.qlogo.cn/e2e-remote.jpg',
+  })
+  check(remote.avatarUrl === 'https://thirdwx.qlogo.cn/e2e-remote.jpg', '公网头像可以保存')
 
   section('[16] 登录态失效自动重登')
   storage['lmd_app_token'] = 'tok_expired_for_e2e'

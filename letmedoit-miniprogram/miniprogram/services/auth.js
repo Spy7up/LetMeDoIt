@@ -9,11 +9,15 @@ const adapt = require('./adapt')
 
 /**
  * 微信登录
- * @param {{nickname?:string, avatarUrl?:string}} profile 微信授权拿到的资料；用户拒绝授权时传空
+ * @param {{nickname?:string, avatarUrl?:string}} profile 微信资料；小程序端已不再传（getUserProfile 拿不到真实资料）
  */
 async function login(profile) {
   const result = await silentLogin(profile)
-  return adapt.member(result.member)
+  const member = adapt.member(result.member)
+  // 仅本次调用有意义：是否首次注册，用来决定登录后要不要引导补头像昵称。
+  // 不参与业务，refreshUser 用服务端数据覆盖后就没有了。
+  member.newUser = !!result.newUser
+  return member
 }
 
 /** 当前登录会员资料 */

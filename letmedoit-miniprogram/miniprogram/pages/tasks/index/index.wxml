@@ -43,7 +43,6 @@
               >
             </view>
             <text class="g-sub">{{bannerSub}}</text>
-            <image class="ic-sm" src="/images/icons/chevron-ink.png" />
           </view>
         </view>
       </view>

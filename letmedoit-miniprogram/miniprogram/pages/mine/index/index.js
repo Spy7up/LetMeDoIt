@@ -1,5 +1,6 @@
 const taskApi = require('../../../services/task')
 const friendApi = require('../../../services/friend')
+const avatar = require('../../../utils/avatar')
 const { presentUser } = require('../../../utils/present')
 
 Page({
@@ -36,7 +37,8 @@ Page({
     let user = null
     try {
       user = await getApp().refreshUser()
-      this.setData({ user: presentUser(user) })
+      // 本机预览头像只对「我」生效，所以只在这里叠加，其余页面统一走默认头像
+      this.setData({ user: avatar.withLocalAvatar(presentUser(user)) })
     } catch (e) {
       // 资料失败就保留上一次，统计继续拉
     }
@@ -64,6 +66,15 @@ Page({
 
   goProfile() {
     wx.navigateTo({ url: '/pages/mine/profile/index' })
+  },
+
+  /**
+   * 本机预览的头像失效了（微信回收了临时文件）：清掉缓存，模板自动回落成名字首字色块。
+   * 这是"永远有头像"的兜底，别删。
+   */
+  onAvatarError() {
+    avatar.clearLocal()
+    if (this.data.user) this.setData({ 'user.avatarUrl': '' })
   },
 
   goSettings() {
