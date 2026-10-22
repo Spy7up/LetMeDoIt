@@ -60,16 +60,24 @@ App({
     }
     const statusBarHeight = win.statusBarHeight || 20
     let navHeight = 44
+    // 右上角胶囊占的宽度：自定义导航右侧的内容必须让开，否则会被挡住
+    let capsuleSpace = 0
     try {
       const rect = wx.getMenuButtonBoundingClientRect()
       if (rect && rect.height) {
         navHeight = (rect.top - statusBarHeight) * 2 + rect.height
+      }
+      const width = win.windowWidth || win.screenWidth || 0
+      if (rect && rect.left && width) {
+        // 胶囊左边缘到屏幕右边的距离 + 8px 呼吸位
+        capsuleSpace = Math.max(0, Math.round(width - rect.left) + 8)
       }
     } catch (e) {
       // 取不到就用默认值
     }
     this.globalData.statusBarHeight = statusBarHeight
     this.globalData.navHeight = navHeight
+    this.globalData.capsuleSpace = capsuleSpace
   },
 
   /**

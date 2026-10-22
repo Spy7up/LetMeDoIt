@@ -96,21 +96,32 @@ function toIso(value) {
   return d ? d.toISOString() : null
 }
 
-/** 截止时间：带「今天/明天」语义 */
+/**
+ * 当天 23:59:59 视为「某一天」模式的截止（布置时约定，见 create 页）
+ */
+function isWholeDayDeadline(iso) {
+  if (!iso) return false
+  const d = new Date(iso)
+  return d.getHours() === 23 && d.getMinutes() === 59 && d.getSeconds() === 59
+}
+
+/** 截止时间：带「今天/明天」语义；某一天模式显示「当天完成」 */
 function formatDeadline(iso, now) {
   if (!iso) return ''
   const d = new Date(iso)
   const base = now ? new Date(now) : new Date()
   const diff = dayDiff(d, base)
 
-  if (diff === 0) return '今天 ' + hm(d)
-  if (diff === 1) return '明天 ' + hm(d)
-  if (diff === 2) return '后天 ' + hm(d)
-  if (diff > 2 && diff < 7) return WEEK[d.getDay()] + ' ' + hm(d)
-  if (d.getFullYear() === base.getFullYear()) {
-    return d.getMonth() + 1 + '月' + d.getDate() + '日 ' + hm(d)
-  }
-  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'
+  let dayLabel
+  if (diff === 0) dayLabel = '今天'
+  else if (diff === 1) dayLabel = '明天'
+  else if (diff === 2) dayLabel = '后天'
+  else if (diff > 2 && diff < 7) dayLabel = WEEK[d.getDay()]
+  else if (d.getFullYear() === base.getFullYear()) dayLabel = d.getMonth() + 1 + '月' + d.getDate() + '日'
+  else dayLabel = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'
+
+  if (isWholeDayDeadline(d)) return dayLabel + ' 当天完成'
+  return dayLabel + ' ' + hm(d)
 }
 
 /** 相对时间：10 分钟前 / 昨天 20:41 */
@@ -161,5 +172,6 @@ module.exports = {
   formatRelative,
   formatOverdue,
   defaultDeadline,
+  isWholeDayDeadline,
   WEEK,
 }

@@ -3,8 +3,8 @@
 <mapper namespace="net.lab1024.sa.app.module.task.dao.TaskDao">
 
     <sql id="baseColumns">
-        task_id, title, description, creator_id, completion_mode, status, start_time, deadline,
-        remind_minutes, remind_time, last_remind_time, deleted_flag, create_time, update_time
+        task_id, title, description, creator_id, completion_mode, status, start_time, start_notify_flag, deadline,
+        remind_minutes, remind_time, last_remind_time, edit_count, deleted_flag, create_time, update_time
     </sql>
 
     <!-- 任务列表：单人单条 SQL 取完计数，避免循环查库 -->
@@ -199,5 +199,14 @@
         ORDER BY remind_time ASC
         LIMIT #{limit}
     </select>
+
+    <!-- 清空开始时间点：关掉「开始时间点」时用，status 由上层重算 -->
+    <update id="clearStartTime">
+        UPDATE t_task
+        SET start_time = NULL,
+            update_time = #{updateTime}
+        WHERE task_id = #{taskId}
+          AND deleted_flag = 0
+    </update>
 
 </mapper>

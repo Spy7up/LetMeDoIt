@@ -101,6 +101,7 @@ public class TaskQueryService {
         detail.setStatus(task.getStatus());
         detail.setStatusDesc(descOfStatus(task.getStatus()));
         detail.setStartTime(task.getStartTime());
+        detail.setStartNotifyFlag(task.getStartNotifyFlag());
         detail.setDeadline(task.getDeadline());
         detail.setRemindMinutes(task.getRemindMinutes());
         detail.setOverdueFlag(isOverdue(task));
@@ -284,7 +285,10 @@ public class TaskQueryService {
      */
     private void fillPermission(TaskDetailVO detail, TaskEntity task, TaskParticipantVO me) {
         boolean creator = Boolean.TRUE.equals(detail.getCreatorFlag());
+        // 接受/完成/催办要求任务已在生效中
         boolean taskActive = TaskManager.ACTIONABLE_TASK_STATUS.contains(task.getStatus());
+        // 撤回只要任务还没结束（含预约中），否则定了时又反悔就只能干等到点
+        boolean cancellable = TaskManager.ACTIVE_TASK_STATUS.contains(task.getStatus());
         boolean notStarted = Arrays.asList(TaskStatusEnum.SCHEDULED.getValue(), TaskStatusEnum.PENDING.getValue())
                 .contains(task.getStatus());
 
@@ -294,10 +298,11 @@ public class TaskQueryService {
         detail.setCanAccept(pendingMine && taskActive);
         detail.setCanReject(pendingMine && taskActive);
         detail.setCanComplete(acceptedMine && taskActive);
-        detail.setCanCancel(creator && taskActive);
+        detail.setCanCancel(creator && cancellable);
         detail.setCanRemind(creator && taskActive);
         detail.setCanAddParticipant(creator && notStarted && detail.getTotalCount() < TaskManager.MAX_PARTICIPANT);
-        detail.setCanEdit(creator && notStarted);
+        // 预约中/待接受不限次数；进行中只给一次
+        detail.setCanEdit(creator && TaskManager.canEdit(task));
     }
 
     private boolean isOverdue(TaskEntity task) {

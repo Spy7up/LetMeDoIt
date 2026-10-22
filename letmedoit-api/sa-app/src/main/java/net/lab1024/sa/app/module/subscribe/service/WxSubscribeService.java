@@ -7,9 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import net.lab1024.sa.app.config.WxProperties;
 import net.lab1024.sa.app.module.member.domain.entity.WxMemberEntity;
 import net.lab1024.sa.app.module.member.service.WxMemberService;
+import net.lab1024.sa.app.module.notice.constant.NoticeTemplateEnum;
 import net.lab1024.sa.app.module.subscribe.dao.WxSubscribeDao;
 import net.lab1024.sa.app.module.subscribe.domain.entity.WxSubscribeEntity;
 import net.lab1024.sa.app.module.subscribe.domain.form.WxSubscribeRecordForm;
+import net.lab1024.sa.app.module.subscribe.domain.vo.SubscribeQuotaVO;
 import net.lab1024.sa.app.module.wx.WxApiService;
 import net.lab1024.sa.app.util.AppRequestUtil;
 import net.lab1024.sa.base.common.code.UserErrorCode;
@@ -19,8 +21,10 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,6 +42,14 @@ public class WxSubscribeService {
      * 用户拒绝或订阅次数用尽
      */
     private static final int ERR_USER_REFUSE = 43101;
+
+    /**
+     * 单次上报最多记几次额度
+     * <p>
+     * 微信一次弹窗对同一个模板只能授权一次，所以正常恒为 1；
+     * 上限拦住前端传大数刷额度（刷了也没用，微信端仍会 43101，但不该让脏数据进库）
+     */
+    private static final int MAX_RECORD_COUNT = 3;
 
     @Resource
     private WxSubscribeDao wxSubscribeDao;
@@ -63,7 +75,7 @@ public class WxSubscribeService {
             return ResponseDTO.userErrorParam("订阅模板不存在");
         }
 
-        int count = form.getCount() == null ? 1 : form.getCount();
+        int count = form.getCount() == null ? 1 : Math.min(Math.max(form.getCount(), 1), MAX_RECORD_COUNT);
         WxSubscribeEntity exist = get(memberId, form.getTemplateId());
         LocalDateTime now = LocalDateTime.now();
 
@@ -82,6 +94,7 @@ public class WxSubscribeService {
             LambdaUpdateWrapper<WxSubscribeEntity> update = new LambdaUpdateWrapper<>();
             update.eq(WxSubscribeEntity::getId, exist.getId())
                     .set(WxSubscribeEntity::getScene, form.getScene())
+                    // count 已 clamp 到 1..3 的 int，不存在拼接注入面
                     .setSql("remain_count = remain_count + " + count)
                     .set(WxSubscribeEntity::getStatus, 1)
                     .set(WxSubscribeEntity::getSubscribeTime, now)
@@ -146,6 +159,43 @@ public class WxSubscribeService {
         return send(memberId, templateId, page, data);
     }
 
+    /**
+     * 我的订阅额度：只返回会走微信的 4 个模板，未配置的也会返回（configured=false），
+     * 便于设置页在模板审核期间显示「审核中」而不是空白
+     */
+    public ResponseDTO<List<SubscribeQuotaVO>> quotaList() {
+        Long memberId = AppRequestUtil.getMemberId();
+        if (memberId == null) {
+            return ResponseDTO.error(UserErrorCode.LOGIN_STATE_INVALID);
+        }
+        List<SubscribeQuotaVO> list = new ArrayList<>();
+        for (NoticeTemplateEnum templateEnum : NoticeTemplateEnum.wechatList()) {
+            SubscribeQuotaVO vo = new SubscribeQuotaVO();
+            vo.setTemplateKey(templateEnum.getKey());
+            vo.setTitle(templateEnum.getTitle());
+
+            WxProperties.SubscribeTemplate template = wxProperties.getTemplate(templateEnum.getKey());
+            if (template == null) {
+                // 模板还没审核通过：前端置灰，提示「审核中」
+                vo.setConfigured(false);
+                vo.setRemainCount(0);
+                vo.setStatus(0);
+                list.add(vo);
+                continue;
+            }
+            String templateId = template.getId().trim();
+            vo.setConfigured(true);
+            vo.setTemplateId(templateId);
+
+            WxSubscribeEntity record = get(memberId, templateId);
+            vo.setRemainCount(record == null || record.getRemainCount() == null ? 0 : record.getRemainCount());
+            vo.setStatus(record == null || record.getStatus() == null ? 0 : record.getStatus());
+            vo.setSubscribeTime(record == null ? null : record.getSubscribeTime());
+            list.add(vo);
+        }
+        return ResponseDTO.ok(list);
+    }
+
     private WxSubscribeEntity get(Long memberId, String templateId) {
         LambdaQueryWrapper<WxSubscribeEntity> query = new LambdaQueryWrapper<>();
         query.eq(WxSubscribeEntity::getMemberId, memberId)
@@ -170,14 +220,25 @@ public class WxSubscribeService {
         wxSubscribeDao.update(null, update);
     }
 
+    /**
+     * 模板白名单校验
+     * <p>
+     * 顺序：subscribe-templates（新配置）→ subscribe-template-ids（旧配置）→ mock 兜底。
+     * 「什么都没配就放行」只留给 mock，避免生产环境用任意 templateId 调用下发接口。
+     */
     private boolean templateAllowed(String templateId) {
         if (!StringUtils.hasText(templateId)) {
             return false;
         }
-        if (CollectionUtils.isEmpty(wxProperties.getSubscribeTemplateIds())) {
-            // 未配置白名单时不限制，便于联调；生产建议配置
-            return true;
+        String id = templateId.trim();
+        List<String> configured = wxProperties.getConfiguredTemplateIds();
+        if (!CollectionUtils.isEmpty(configured)) {
+            return configured.contains(id);
         }
-        return wxProperties.getSubscribeTemplateIds().contains(templateId);
+        List<String> legacyWhiteList = wxProperties.getSubscribeTemplateIds();
+        if (!CollectionUtils.isEmpty(legacyWhiteList)) {
+            return legacyWhiteList.contains(id);
+        }
+        return wxProperties.isMock();
     }
 }

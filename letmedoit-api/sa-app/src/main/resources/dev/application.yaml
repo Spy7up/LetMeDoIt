@@ -26,5 +26,25 @@ wx:
     timeout: 5000
     # 订阅消息跳转版本：developer / trial / formal
     miniprogram-state: developer
-    # 订阅消息模板白名单，为空表示不限制（联调方便）
+    # 旧版模板白名单，保留兼容；新配置用下面的 subscribe-templates
     subscribe-template-ids: []
+    # 订阅消息模板：审核通过后把 id 填进来（建议走环境变量，别写死进仓库）
+    # keywords 顺序必须与微信后台模板关键词完全一致，否则报 47003
+    # id 留空的模板会自动跳过，只走站内通知，业务不受影响
+    subscribe-templates:
+      TASK_ASSIGNED:
+        id: ${WX_TPL_TASK_ASSIGNED:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, thing2, number3, time4]
+      TASK_REMIND:
+        id: ${WX_TPL_TASK_REMIND:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, time2, thing3]
+      TASK_COMPLETED:
+        id: ${WX_TPL_TASK_COMPLETED:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, thing2, time3, thing4]
+      TASK_ALL_DONE:
+        id: ${WX_TPL_TASK_ALL_DONE:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, time2, phrase3]

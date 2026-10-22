@@ -58,6 +58,16 @@ public interface TaskDao extends BaseMapper<TaskEntity> {
                      @Param("updateTime") LocalDateTime updateTime);
 
     /**
+     * 清空开始时间点（委托人在编辑时关掉「开始时间点」）。
+     * 用独立 SQL 是因为 updateById 会忽略 null 字段，清不掉。
+     *
+     * @param taskId     任务ID
+     * @param updateTime 更新时间
+     * @return 受影响行数
+     */
+    int clearStartTime(@Param("taskId") Long taskId, @Param("updateTime") LocalDateTime updateTime);
+
+    /**
      * 更新提醒信息（创建、编辑、催办后调用）
      *
      * @param taskId         任务ID

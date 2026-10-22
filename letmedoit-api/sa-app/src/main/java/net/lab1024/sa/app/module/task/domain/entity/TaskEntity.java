@@ -57,9 +57,14 @@ public class TaskEntity implements Serializable {
     private Integer status;
 
     /**
-     * 定时生效时间，为空表示立即生效
+     * 开始时间点，为空表示立即开始
      */
     private LocalDateTime startTime;
+
+    /**
+     * 开始时间点到点是否通知参与者（0 否 1 是）
+     */
+    private Boolean startNotifyFlag;
 
     /**
      * 截止时间
@@ -80,6 +85,11 @@ public class TaskEntity implements Serializable {
      * 最后一次催办时间，用于催办限频
      */
     private LocalDateTime lastRemindTime;
+
+    /**
+     * 编辑次数：进行中只允许再改一次（改完 edit_count > 0 即锁定）
+     */
+    private Integer editCount;
 
     /**
      * 是否删除

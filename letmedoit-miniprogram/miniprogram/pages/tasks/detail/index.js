@@ -1,10 +1,12 @@
 const taskApi = require('../../../services/task')
+const notifyApi = require('../../../services/notify')
 const { presentDetail } = require('../../../utils/present')
 
 /** 详情 + 底部操作条模式（accept / complete / creator / none） */
 function withBar(d) {
   const p = presentDetail(d)
   p.meId = (d.me && d.me.userId) || ''
+  // 撤回已挪到标题右侧，底部只按「能不能催 / 能不能加人」决定
   p.barMode =
     d.me && d.me.canAccept
       ? 'accept'
@@ -12,6 +14,8 @@ function withBar(d) {
       ? 'complete'
       : d.canRemind
       ? 'creator'
+      : d.canAddParticipant
+      ? 'addonly'
       : 'none'
   return p
 }
@@ -72,6 +76,11 @@ Page({
   async onAccept() {
     if (this.data.acting) return
     this.setData({ acting: 'accept' })
+    // 接受任务 = 用户做出承诺，是攒订阅额度通过率最高的时机（一次性订阅：授权一次只能发一条）。
+    // 必须保持为 tap 回调里的第一个 await：中间夹任何异步都会触发
+    // requestSubscribeMessage:fail can only be invoked by user TAP gesture。
+    // 模板还在审核时会直接返回 skipped，不弹窗、不阻塞。
+    await notifyApi.requestSubscribe(['TASK_REMIND', 'TASK_ASSIGNED'])
     try {
       const d = await taskApi.accept(this.taskId)
       this.setData({ task: withBar(d) })
@@ -128,21 +137,12 @@ Page({
     }
   },
 
-  goAdd() {
-    wx.navigateTo({ url: '/pages/tasks/participants/index?taskId=' + this.taskId + '&mode=add' })
+  goEdit() {
+    wx.navigateTo({ url: '/pages/tasks/create/index?taskId=' + this.taskId })
   },
 
-  onMore() {
-    const items = ['撤回这条任务']
-    if (this.data.task && this.data.task.canAddParticipant) items.unshift('追加参与者')
-    wx.showActionSheet({
-      itemList: items,
-      success: (res) => {
-        const label = items[res.tapIndex]
-        if (label === '追加参与者') return this.goAdd()
-        if (label === '撤回这条任务') return this.confirmCancel()
-      },
-    })
+  goAdd() {
+    wx.navigateTo({ url: '/pages/tasks/participants/index?taskId=' + this.taskId + '&mode=add' })
   },
 
   confirmCancel() {

@@ -83,6 +83,8 @@ function create(dto) {
     completionMode: dto.completionMode === 'any' ? 1 : 2,
     deadline: apiTime(dto.deadline),
     startTime: dto.startAt ? apiTime(dto.startAt) : null,
+    // 到点通知默认开，显式传 false 才关
+    startNotifyFlag: dto.startNotify !== false,
     remindMinutes: dto.remindMinutes || 0,
   }
   return http.post('/api/task/add', body, { loading: '布置中…' }).then((res) => decorate(adapt.detail(res)))
@@ -101,6 +103,10 @@ function update(id, dto) {
   if (dto.completionMode !== undefined) body.completionMode = dto.completionMode === 'any' ? 1 : 2
   if (dto.deadline) body.deadline = apiTime(dto.deadline)
   if (dto.remindMinutes !== undefined) body.remindMinutes = dto.remindMinutes
+  if (dto.startAt !== undefined) body.startTime = dto.startAt ? apiTime(dto.startAt) : null
+  if (dto.startNotify !== undefined) body.startNotifyFlag = !!dto.startNotify
+  // 关掉开始时间点：后端会清空 start_time 并把任务退回待接受
+  if (dto.removeStartTime !== undefined) body.removeStartTime = !!dto.removeStartTime
   return http.post('/api/task/update', body).then((res) => decorate(adapt.detail(res)))
 }
 

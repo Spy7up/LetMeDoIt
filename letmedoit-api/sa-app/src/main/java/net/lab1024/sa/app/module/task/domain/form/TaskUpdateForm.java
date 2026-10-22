@@ -43,4 +43,14 @@ public class TaskUpdateForm {
 
     @Schema(description = "提前提醒分钟数")
     private Integer remindMinutes;
+
+    @Schema(description = "开始时间点（仅预约中的任务可改，yyyy-MM-dd HH:mm:ss）")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime startTime;
+
+    @Schema(description = "开始时间点到点是否通知参与者")
+    private Boolean startNotifyFlag;
+
+    @Schema(description = "是否清空开始时间点（委托人关掉开关时传 true，任务会退回待接受）")
+    private Boolean removeStartTime;
 }

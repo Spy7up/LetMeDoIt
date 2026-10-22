@@ -29,12 +29,8 @@
           <text class="who-name">{{item.remark || item.nickname}}</text>
           <text class="who-sub">{{item.activeTaskCount}} 个任务在进行</text>
         </view>
-        <view class="check {{selected.indexOf(item.id) >= 0 ? 'on' : ''}}">
-          <image
-            wx:if="{{selected.indexOf(item.id) >= 0}}"
-            class="ic-sm"
-            src="/images/icons/check-white.png"
-          />
+        <view class="check {{item.checked ? 'on' : ''}}">
+          <image wx:if="{{item.checked}}" class="ic-sm" src="/images/icons/check-white.png" />
         </view>
       </view>
     </view>

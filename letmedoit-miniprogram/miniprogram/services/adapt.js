@@ -128,6 +128,7 @@ function detail(vo) {
     },
     status: toStatus(vo.status),
     startAt: toIso(vo.startTime),
+    startNotify: vo.startNotifyFlag !== false,
     deadline: toIso(vo.deadline),
     remindMinutes: vo.remindMinutes || 0,
     isOverdue: !!vo.overdueFlag,
@@ -194,6 +195,20 @@ function notice(vo) {
   }
 }
 
+/** SubscribeQuotaVO：订阅额度（一次授权 = 一条） */
+function subscribeQuota(vo) {
+  if (!vo) return null
+  const remain = vo.remainCount == null ? 0 : Number(vo.remainCount)
+  return {
+    templateKey: vo.templateKey || '',
+    title: vo.title || '',
+    remainCount: isNaN(remain) ? 0 : remain,
+    // configured=false 表示模板还在审核，前端置灰并给文案，不要显示成"已关闭"
+    configured: vo.configured !== false,
+    on: vo.configured !== false && vo.status === 1 && remain > 0,
+  }
+}
+
 module.exports = {
   user,
   member,
@@ -204,4 +219,5 @@ module.exports = {
   friend,
   request,
   notice,
+  subscribeQuota,
 }

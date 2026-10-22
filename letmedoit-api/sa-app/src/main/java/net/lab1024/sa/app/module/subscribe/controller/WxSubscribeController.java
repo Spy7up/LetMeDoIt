@@ -6,12 +6,16 @@ import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import net.lab1024.sa.app.module.subscribe.domain.form.WxSubscribeRecordForm;
 import net.lab1024.sa.app.module.subscribe.domain.form.WxSubscribeSendForm;
+import net.lab1024.sa.app.module.subscribe.domain.vo.SubscribeQuotaVO;
 import net.lab1024.sa.app.module.subscribe.service.WxSubscribeService;
 import net.lab1024.sa.base.common.domain.ResponseDTO;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 订阅消息
@@ -25,6 +29,12 @@ public class WxSubscribeController {
 
     @Resource
     private WxSubscribeService wxSubscribeService;
+
+    @GetMapping("/list")
+    @Operation(summary = "我的订阅额度（设置页回显）")
+    public ResponseDTO<List<SubscribeQuotaVO>> list() {
+        return wxSubscribeService.quotaList();
+    }
 
     @PostMapping("/record")
     @Operation(summary = "记录订阅授权（wx.requestSubscribeMessage 成功后调用）")

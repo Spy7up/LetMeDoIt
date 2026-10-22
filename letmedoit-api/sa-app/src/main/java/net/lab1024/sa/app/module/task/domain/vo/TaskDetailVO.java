@@ -45,6 +45,9 @@ public class TaskDetailVO {
     @Schema(description = "定时生效时间")
     private LocalDateTime startTime;
 
+    @Schema(description = "开始时间点到点是否通知参与者")
+    private Boolean startNotifyFlag;
+
     @Schema(description = "截止时间")
     private LocalDateTime deadline;
 

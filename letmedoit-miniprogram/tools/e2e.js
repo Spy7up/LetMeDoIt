@@ -301,7 +301,7 @@ async function run() {
   await as('granny', '奶奶')
   const fromCreator = await taskSvc.detail(taskId)
   check(fromCreator.progress.done === 1, '委托方看到完成进度 ' + fromCreator.progress.done + '/' + fromCreator.progress.total)
-  check(fromCreator.canEdit === false, '进行中不可编辑 canEdit=false（只允许预约中/待接受改）')
+  check(fromCreator.canEdit === true, '进行中还能再改一次 canEdit=true（改完即锁）')
   check(fromCreator.canRemind === true, '可催办 canRemind=true')
 
   const reminded = await taskSvc.remind(taskId)
@@ -490,6 +490,226 @@ async function run() {
   const after = await taskSvc.summary()
   check(typeof after.assignee === 'number', '过期 token 自动换新并重放成功')
   check(storage['lmd_app_token'] !== 'tok_expired_for_e2e', '本地 token 已刷新')
+
+  section('[17] 预约中的任务：可撤回、可筛选')
+  await as('granny', '奶奶')
+  const fmtAt = (ms) => {
+    const d = new Date(ms)
+    return (
+      d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'
+    )
+  }
+  const schedTask = await taskSvc.create({
+    title: '联调-预约任务',
+    description: '到点才通知',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: fmtAt(Date.now() + 6 * 3600 * 1000),
+    startAt: fmtAt(Date.now() + 3 * 3600 * 1000),
+    remindMinutes: 10,
+  })
+  check(schedTask.status === 'scheduled', '未来开始时间 → 预约中 ' + schedTask.status)
+
+  const schedDetail = await taskSvc.detail(schedTask.id)
+  check(schedDetail.canCancel === true, '预约中任务 canCancel=true')
+  check(schedDetail.canEdit === true, '预约中任务 canEdit=true')
+
+  const schedList = await taskSvc.list({ role: 'creator', status: 'scheduled' })
+  check(
+    schedList.list.some((t) => t.id === schedTask.id),
+    '「预约中」筛选查到该任务（共 ' + schedList.total + ' 条）'
+  )
+
+  const schedCancelled = await taskSvc.cancel(schedTask.id)
+  check(schedCancelled.status === 'cancelled', '预约中撤回成功 → ' + schedCancelled.status)
+
+  // 撤回后参与者收到取消通知，委托人自己不收
+  await as('kid', '小明')
+  const kidAfterCancel = await api('notice').list({ limit: 30 })
+  const cancelNotice = kidAfterCancel.list.find(
+    (n) => String(n.taskId) === String(schedTask.id) && n.templateKey === 'TASK_CANCELLED'
+  )
+  check(!!cancelNotice, '参与者收到任务取消通知')
+  if (cancelNotice) {
+    const preview = cancelNotice.fields.map((f) => f.label + ':' + f.value).join(' | ')
+    check(/撤回时间/.test(preview), '取消通知字段：' + preview)
+  }
+  await as('granny', '奶奶')
+  const grannyAfterCancel = await api('notice').list({ limit: 30 })
+  check(
+    !grannyAfterCancel.list.some(
+      (n) => String(n.taskId) === String(schedTask.id) && n.templateKey === 'TASK_CANCELLED'
+    ),
+    '委托人自己不会收到取消通知'
+  )
+
+  // 「某一天」：截止存当天 23:59:59，且不设提前提醒
+  const tomorrow = new Date(Date.now() + 24 * 3600 * 1000)
+  const dayDeadline =
+    tomorrow.getFullYear() + '-' + pad(tomorrow.getMonth() + 1) + '-' + pad(tomorrow.getDate()) + ' 23:59:59'
+  const dayTask = await taskSvc.create({
+    title: '联调-某一天任务',
+    description: '当天做完就行',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: dayDeadline,
+    remindMinutes: 0,
+  })
+  const dayDetail = await taskSvc.detail(dayTask.id)
+  const stored = new Date(dayDetail.deadline)
+  check(
+    stored.getHours() === 23 && stored.getMinutes() === 59 && stored.getSeconds() === 59,
+    '某一天截止落在 23:59:59'
+  )
+  check(dayDetail.remindMinutes === 0, '某一天不设提前提醒')
+
+  section('[18] 编辑：只有布置者能改，进行中只给一次')
+  await as('granny', '奶奶')
+  const editTask = await taskSvc.create({
+    title: '联调-可编辑任务',
+    description: '先写一句话',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: fmtAt(Date.now() + 5 * 3600 * 1000),
+    remindMinutes: 0,
+  })
+  const editable = await taskSvc.detail(editTask.id)
+  check(editable.canEdit === true, '待接受 canEdit=true')
+  check(editable.isCreator === true, '布置者视角 isCreator=true')
+
+  const edited1 = await taskSvc.update(editTask.id, { title: '联调-改过的标题' })
+  check(edited1.title === '联调-改过的标题', '待接受可以反复改：' + edited1.title)
+  const edited2 = await taskSvc.update(editTask.id, { description: '再改一句' })
+  check(edited2.description === '再改一句', '第二次编辑也成功')
+
+  // 非布置者看不到编辑入口
+  await as('kid', '小明')
+  const kidView = await taskSvc.detail(editTask.id)
+  check(kidView.canEdit === false, '参与者 canEdit=false')
+  let kidErr = ''
+  try {
+    await taskSvc.update(editTask.id, { title: '参与者想改' })
+  } catch (e) {
+    kidErr = e.message || ''
+  }
+  check(/只有布置的人/.test(kidErr), '参与者改不了：' + kidErr)
+
+  // 有人接了 → 进行中，只能再改一次
+  await taskSvc.accept(editTask.id)
+  await as('granny', '奶奶')
+  const inProgress = await taskSvc.detail(editTask.id)
+  check(inProgress.status === 'in_progress', '有人接受后状态 ' + inProgress.status)
+  check(inProgress.canEdit === true, '进行中还能再改一次')
+
+  await taskSvc.update(editTask.id, { title: '进行中改的那一次' })
+  const afterOnce = await taskSvc.detail(editTask.id)
+  check(afterOnce.canEdit === false, '进行中改过一次后 canEdit=false')
+  check(afterOnce.canCancel === true, '进行中的任务也能撤回 canCancel=true')
+  let secondErr = ''
+  try {
+    await taskSvc.update(editTask.id, { title: '想再改一次' })
+  } catch (e) {
+    secondErr = e.message || ''
+  }
+  check(/改过一次/.test(secondErr), '进行中二次编辑被拒：' + secondErr)
+
+  section('[19] 开始时间点 + 到点通知 + 编辑后通知全员')
+  await as('granny', '奶奶')
+  const noticeSvc2 = api('notice')
+  const startNotifyTask = await taskSvc.create({
+    title: '联调-开始时间点任务',
+    description: '到点通知',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: fmtAt(Date.now() + 6 * 3600 * 1000),
+    startAt: fmtAt(Date.now() + 3 * 3600 * 1000),
+    startNotify: false,
+    remindMinutes: 10,
+  })
+  const snDetail = await taskSvc.detail(startNotifyTask.id)
+  check(snDetail.status === 'scheduled', '开始时间点任务 → 预约中')
+  check(snDetail.startNotify === false, '到点通知可以关掉')
+  check(!!snDetail.startAt, '开始时间点已保存')
+
+  // 预约中可改开始时间点（打开通知）
+  const newStart = fmtAt(Date.now() + 2 * 3600 * 1000)
+  const editedStart = await taskSvc.update(startNotifyTask.id, {
+    startAt: newStart,
+    startNotify: true,
+  })
+  check(editedStart.startNotify === true, '编辑后开始通知打开')
+  const editedStartDetail = await taskSvc.detail(startNotifyTask.id)
+  const savedStart = new Date(editedStartDetail.startAt)
+  check(
+    Math.abs(savedStart.getTime() - new Date(newStart.replace(' ', 'T')).getTime()) < 60000,
+    '开始时间点已改：' + editedStartDetail.startAt
+  )
+
+  // 编辑后参与者收到变更通知
+  await as('kid', '小明')
+  const kidNotices = await noticeSvc2.list({ limit: 20 })
+  const edited = kidNotices.list.find(
+    (n) => n.taskId === startNotifyTask.id && n.templateKey === 'TASK_EDITED'
+  )
+  check(!!edited, '参与者收到任务变更通知')
+  if (edited) {
+    const preview = edited.fields.map((f) => f.label + ':' + f.value).join(' | ')
+    check(/截止时间/.test(preview), '变更通知字段：' + preview)
+  }
+
+  // 非预约中任务不能改开始时间（后端直接忽略）
+  await as('granny', '奶奶')
+  const pendingTask = await taskSvc.create({
+    title: '联调-待接受改开始时间',
+    description: '',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: fmtAt(Date.now() + 6 * 3600 * 1000),
+    remindMinutes: 0,
+  })
+  const pendingEdit = await taskSvc.update(pendingTask.id, {
+    startAt: fmtAt(Date.now() + 2 * 3600 * 1000),
+  })
+  check(pendingEdit.status === 'pending' && !pendingEdit.startAt, '非预约中任务不会被执行开始时间')
+
+  // 关掉开始时间点 → 退回待接受
+  const noStartTask = await taskSvc.create({
+    title: '联调-取消开始时间点',
+    description: '',
+    participantIds: [kid.id],
+    completionMode: 'all',
+    deadline: fmtAt(Date.now() + 6 * 3600 * 1000),
+    startAt: fmtAt(Date.now() + 3 * 3600 * 1000),
+    remindMinutes: 0,
+  })
+  check(noStartTask.status === 'scheduled', '带开始时间的新任务 → 预约中')
+  const cleared = await taskSvc.update(noStartTask.id, { removeStartTime: true, startAt: null })
+  check(cleared.status === 'pending', '关掉开始时间点 → ' + cleared.status)
+  check(!cleared.startAt, '开始时间点已清空')
+  const clearedDetail = await taskSvc.detail(noStartTask.id)
+  check(clearedDetail.status === 'pending' && !clearedDetail.startAt, '重新查询仍是待接受')
+
+  // 「某一天」22:00 之后开始，后端拒绝
+  const tomorrow2 = new Date(Date.now() + 24 * 3600 * 1000)
+  const dayDl =
+    tomorrow2.getFullYear() + '-' + pad(tomorrow2.getMonth() + 1) + '-' + pad(tomorrow2.getDate()) + ' 23:59:59'
+  const day22 = tomorrow2.getFullYear() + '-' + pad(tomorrow2.getMonth() + 1) + '-' + pad(tomorrow2.getDate()) + ' 22:30:00'
+  let lateErr = ''
+  try {
+    await taskSvc.create({
+      title: '联调-某一天晚开始',
+      description: '',
+      participantIds: [kid.id],
+      completionMode: 'all',
+      deadline: dayDl,
+      startAt: day22,
+      remindMinutes: 0,
+    })
+  } catch (e) {
+    lateErr = e.message || ''
+  }
+  check(/22:00/.test(lateErr), '「某一天」22:00 后开始被拒：' + lateErr)
 
   section('结果')
   console.log('  通过 ' + pass + ' 项，失败 ' + fails.length + ' 项')

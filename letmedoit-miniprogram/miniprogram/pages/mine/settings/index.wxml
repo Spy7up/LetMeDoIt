@@ -8,8 +8,8 @@
     <view class="menu">
       <view class="menu-row" wx:for="{{list}}" wx:key="key" data-key="{{item.key}}" data-index="{{index}}" bindtap="toggle">
         <view class="set-item">
-          <text class="menu-label">{{item.title}}</text>
-          <text class="set-desc">{{item.desc}}</text>
+          <text class="menu-label">{{item.title}}{{item.on ? '（还能收 ' + item.remain + ' 条）' : ''}}</text>
+          <text class="set-desc">{{item.hint || item.desc}}</text>
         </view>
         <view class="switch {{item.on ? 'on' : ''}}">
           <view class="switch-knob"></view>

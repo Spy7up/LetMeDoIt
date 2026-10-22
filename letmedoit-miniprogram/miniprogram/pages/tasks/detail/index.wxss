@@ -13,6 +13,34 @@
   padding: 8rpx 4rpx 4rpx;
 }
 
+.hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.hero-ops {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.hero-edit {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--brand-ink);
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  background: var(--brand-soft);
+}
+
+/* 撤回是破坏性操作：不用主题橙，避免和「编辑」抢注意力 */
+.hero-cancel {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
 .hero-title {
   font-size: 46rpx;
   font-weight: 700;

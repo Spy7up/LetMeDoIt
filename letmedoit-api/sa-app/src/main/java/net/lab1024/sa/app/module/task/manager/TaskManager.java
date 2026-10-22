@@ -64,6 +64,26 @@ public class TaskManager {
      */
     public static final int MAX_PARTICIPANT = 10;
 
+    /**
+     * 能否编辑：
+     * 预约中 / 待接受 —— 委托人随便改（还没人接，改动不影响别人）；
+     * 进行中 —— 只允许再改一次，现在已经有人在做，反复改会让人白干。
+     */
+    public static boolean canEdit(TaskEntity task) {
+        if (task == null || task.getStatus() == null) {
+            return false;
+        }
+        Integer status = task.getStatus();
+        if (TaskStatusEnum.SCHEDULED.getValue().equals(status)
+                || TaskStatusEnum.PENDING.getValue().equals(status)) {
+            return true;
+        }
+        if (TaskStatusEnum.IN_PROGRESS.getValue().equals(status)) {
+            return task.getEditCount() == null || task.getEditCount() == 0;
+        }
+        return false;
+    }
+
     @Resource
     private TaskDao taskDao;
 

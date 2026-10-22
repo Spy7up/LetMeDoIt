@@ -263,12 +263,20 @@ function slot(memberId, status, extra) {
   )
 }
 
+const NOTICE_TITLES = {
+  TASK_ASSIGNED: '任务委托通知',
+  TASK_REMIND: '任务到期提醒',
+  TASK_START: '任务开始通知',
+  TASK_EDITED: '任务变更通知',
+  TASK_CANCELLED: '任务取消通知',
+  TASK_COMPLETED: '任务完成通知',
+  TASK_ALL_DONE: '全员完成通知',
+}
+
 function notice(noticeId, taskId, toMemberId, templateKey, fields, readFlag, ms) {
   return {
     noticeId, taskId, toMemberId, templateKey,
-    title: templateKey === 'TASK_ASSIGNED' ? '任务委托通知'
-      : templateKey === 'TASK_REMIND' ? '任务到期提醒'
-      : templateKey === 'TASK_ALL_DONE' ? '全员完成通知' : '任务完成通知',
+    title: NOTICE_TITLES[templateKey] || '任务通知',
     fields, readFlag, createTime: ms,
   }
 }
@@ -392,6 +400,9 @@ function detailVO(task, me) {
   const mine = participantOf(task, me)
   const isCreator = task.creatorId === Number(me)
   const active = task.status === TASK.PENDING || task.status === TASK.IN_PROGRESS
+  // 撤回只要任务没结束（含预约中），与 sa-app 的 ACTIVE_TASK_STATUS 保持一致
+  const cancellable =
+    task.status === TASK.SCHEDULED || task.status === TASK.PENDING || task.status === TASK.IN_PROGRESS
   const ps = task.participants
 
   return {
@@ -405,6 +416,7 @@ function detailVO(task, me) {
     status: task.status,
     statusDesc: TASK_DESC[task.status],
     startTime: task.startTime ? fmtTime(task.startTime) : null,
+    startNotifyFlag: task.startNotifyFlag !== false,
     deadline: fmtTime(task.deadline),
     remindMinutes: task.remindMinutes || 0,
     overdueFlag: isOverdue(task, Date.now()),
@@ -418,11 +430,16 @@ function detailVO(task, me) {
     canAccept: !!mine && mine.status === P.PENDING && active,
     canReject: !!mine && mine.status === P.PENDING && active,
     canComplete: !!mine && mine.status === P.ACCEPTED && active,
-    canCancel: isCreator && active,
+    canCancel: isCreator && cancellable,
     canRemind: isCreator && active,
     canAddParticipant:
       isCreator && (task.status === TASK.PENDING || task.status === TASK.SCHEDULED) && ps.length < 10,
-    canEdit: isCreator && (task.status === TASK.PENDING || task.status === TASK.SCHEDULED),
+    // 预约中/待接受不限次数；进行中只给一次
+    canEdit:
+      isCreator &&
+      (task.status === TASK.SCHEDULED ||
+        task.status === TASK.PENDING ||
+        (task.status === TASK.IN_PROGRESS && !task.editCount)),
     events: state.events
       .filter((e) => e.taskId === task.taskId)
       .sort((a, b) => a.createTime - b.createTime)
@@ -638,6 +655,7 @@ route('POST', /^\/api\/task\/add$/, ({ me, body }) => {
     participants: ids.map((id) => slot(id, P.PENDING)),
     completionMode: mode,
     startTime: body.startTime ? parseTime(body.startTime) : null,
+    startNotifyFlag: body.startNotifyFlag !== false,
     deadline,
     remindMinutes: Number(body.remindMinutes) || 0,
     createTime: Date.now(),
@@ -663,15 +681,47 @@ route('POST', /^\/api\/task\/update$/, ({ me, body }) => {
   const task = state.tasks.find((t) => t.taskId === Number(body.taskId))
   if (!task) return fail(ERR.NOT_EXIST, '任务不存在')
   if (task.creatorId !== Number(me)) return fail(ERR.NO_PERMISSION, '只有布置的人能操作')
-  if (task.status !== TASK.PENDING && task.status !== TASK.SCHEDULED) {
-    return fail(ERR.REPEAT, 'TA 已经接了，改不了了')
+  const editable =
+    task.status === TASK.SCHEDULED ||
+    task.status === TASK.PENDING ||
+    (task.status === TASK.IN_PROGRESS && !task.editCount)
+  if (!editable) {
+    return fail(ERR.REPEAT, task.status === TASK.IN_PROGRESS ? '已经改过一次了，不能再改' : '任务已经结束，改不了了')
   }
+  // 只有进行中的编辑才计数（预约中/待接受随便改）
+  if (task.status === TASK.IN_PROGRESS) task.editCount = (task.editCount || 0) + 1
   if (body.title !== undefined) task.title = String(body.title).slice(0, 30)
   if (body.description !== undefined) task.description = String(body.description).slice(0, 200)
   if (body.deadline) task.deadline = parseTime(body.deadline)
   if (body.completionMode !== undefined) task.completionMode = Number(body.completionMode)
   if (body.remindMinutes !== undefined) task.remindMinutes = Number(body.remindMinutes)
+
+  // 开始时间点只有「预约中」能改
+  if (task.status === TASK.SCHEDULED) {
+    // 关掉开始时间点：清空后 bump() 会把它重算成待接受
+    if (body.removeStartTime) {
+      task.startTime = null
+    } else if (body.startTime !== undefined) {
+      task.startTime = body.startTime ? parseTime(body.startTime) : null
+    }
+    if (body.startNotifyFlag !== undefined) task.startNotifyFlag = body.startNotifyFlag !== false
+  }
+
   bump(task)
+
+  // 编辑后所有参与者都收到一条变更通知（不含委托人）
+  const targets = task.participants
+    .map((p) => p.memberId)
+    .filter((id) => id !== Number(me))
+  if (targets.length) {
+    pushNotices(task, targets, 'TASK_EDITED', [
+      { label: '任务名称', value: task.title },
+      { label: '委托人', value: memberOf(me).nickname },
+      { label: '截止时间', value: fmtTime(task.deadline) },
+      { label: '提示', value: '你收到的任务有改动，看一眼' },
+    ])
+  }
+
   return ok(detailVO(task, me))
 })
 
@@ -790,6 +840,17 @@ route('POST', /^\/api\/task\/cancel$/, ({ me, body }) => {
   task.status = TASK.CANCELLED
   task.updateTime = Date.now()
   pushEvent(task, me, 6, '撤回', '撤回了任务')
+
+  // 撤回要通知全部参与者（不含委托人）
+  const targets = task.participants.map((p) => p.memberId).filter((id) => id !== Number(me))
+  if (targets.length) {
+    pushNotices(task, targets, 'TASK_CANCELLED', [
+      { label: '任务名称', value: task.title },
+      { label: '委托人', value: memberOf(me).nickname },
+      { label: '撤回时间', value: fmtTime(task.updateTime) },
+      { label: '提示', value: '委托人撤回了这条任务，不用再做了' },
+    ])
+  }
   return ok(detailVO(task, me))
 })
 
@@ -969,6 +1030,26 @@ route('POST', /^\/api\/notice\/read$/, ({ me, body }) => {
   })
   return ok(state.notices.filter((n) => n.toMemberId === Number(me) && !n.readFlag).length)
 })
+
+/* 订阅消息（与 sa-app 的 /api/subscribe 对齐） */
+
+/**
+ * 契约替身里模板 id 一律为空（对应后端「模板审核中」的真实状态）：
+ * list 返回 4 条 configured=false，record 记账成功但不下发。
+ */
+route('GET', /^\/api\/subscribe\/list$/, () =>
+  ok(
+    ['TASK_ASSIGNED', 'TASK_REMIND', 'TASK_COMPLETED', 'TASK_ALL_DONE'].map((templateKey) => ({
+      templateKey,
+      templateId: '',
+      configured: false,
+      remainCount: 0,
+      status: 0,
+    }))
+  )
+)
+
+route('POST', /^\/api\/subscribe\/record$/, () => ok(''))
 
 /* ---------------- 服务 ---------------- */
 

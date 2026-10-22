@@ -52,6 +52,9 @@ public class TaskAddForm {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 
+    @Schema(description = "开始时间点到点是否通知参与者，不传默认是")
+    private Boolean startNotifyFlag;
+
     @Schema(description = "提前提醒分钟数，0 不提醒", example = "10")
     private Integer remindMinutes;
 }

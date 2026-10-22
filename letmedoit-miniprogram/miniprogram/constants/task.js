@@ -83,6 +83,7 @@ const COMPLETION_MODE_CODE = { 1: 'any', 2: 'all' }
 /** 列表筛选选项：order 决定 chips 顺序 */
 const STATUS_FILTERS = [
   { key: 'all', label: '全部' },
+  { key: 'scheduled', label: '预约中' },
   { key: 'pending', label: '待接受' },
   { key: 'in_progress', label: '进行中' },
   { key: 'completed', label: '已完成' },
@@ -95,6 +96,7 @@ const STATUS_FILTERS = [
  */
 const STATUS_FILTER_QUERY = {
   all: {},
+  scheduled: { status: 0 },
   pending: { status: 1 },
   in_progress: { status: 2 },
   completed: { status: 3 },

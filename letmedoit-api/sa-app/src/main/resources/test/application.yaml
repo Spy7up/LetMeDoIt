@@ -25,3 +25,23 @@ wx:
     # 生产必须配置模板白名单，防止任意模板被下发
     subscribe-template-ids:
       - ${WX_SUBSCRIBE_TEMPLATE_ID_1:}
+    # 订阅消息模板：审核通过后填 id（走环境变量，别写死进仓库）
+    # keywords 顺序必须与微信后台模板关键词完全一致，否则报 47003
+    # id 留空的模板自动跳过，只走站内通知
+    subscribe-templates:
+      TASK_ASSIGNED:
+        id: ${WX_TPL_TASK_ASSIGNED:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, thing2, number3, time4]
+      TASK_REMIND:
+        id: ${WX_TPL_TASK_REMIND:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, time2, thing3]
+      TASK_COMPLETED:
+        id: ${WX_TPL_TASK_COMPLETED:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, thing2, time3, thing4]
+      TASK_ALL_DONE:
+        id: ${WX_TPL_TASK_ALL_DONE:}
+        page: pages/tasks/detail/index
+        keywords: [thing1, time2, phrase3]

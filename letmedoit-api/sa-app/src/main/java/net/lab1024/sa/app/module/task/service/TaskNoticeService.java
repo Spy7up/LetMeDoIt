@@ -6,9 +6,12 @@ import net.lab1024.sa.app.module.notice.constant.NoticeTemplateEnum;
 import net.lab1024.sa.app.module.notice.dao.NoticeDao;
 import net.lab1024.sa.app.module.notice.domain.entity.NoticeEntity;
 import net.lab1024.sa.app.module.notice.domain.vo.NoticeVO;
+import net.lab1024.sa.app.module.subscribe.service.WxSubscribePusher;
 import net.lab1024.sa.app.module.task.constant.CompletionModeEnum;
 import net.lab1024.sa.app.module.task.domain.entity.TaskEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
@@ -20,8 +23,8 @@ import java.util.List;
 /**
  * 任务相关通知的生成
  * <p>
- * 只负责「写通知表」，不负责投递。t_task_notice 是小程序内消息中心的事实来源，
- * 后续接微信订阅消息时，从这张表取内容投递即可（投递与内容解耦）。
+ * 只负责「写通知表」，投递交给 WxSubscribePusher：t_task_notice 是小程序内消息中心的事实来源，
+ * 微信订阅消息从这张表取内容投递，内容与投递解耦。
  * <p>
  * 字段顺序与《产品与技术方案》§7.2 的模板关键词一一对应，第一个永远是任务名称。
  *
@@ -42,6 +45,9 @@ public class TaskNoticeService {
 
     @Resource
     private NoticeDao noticeDao;
+
+    @Resource
+    private WxSubscribePusher subscribePusher;
 
     /**
      * 任务委托通知：发给每个参与者
@@ -112,6 +118,54 @@ public class TaskNoticeService {
         insertBatch(memberIds, task.getTaskId(), NoticeTemplateEnum.TASK_REMIND, fields);
     }
 
+    /**
+     * 开始时间点到点通知：任务正式生效，提醒参与者可以动手了
+     */
+    public void notifyStarted(TaskEntity task, String creatorName, List<Long> memberIds) {
+        if (CollectionUtils.isEmpty(memberIds)) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("委托人", creatorName),
+                new NoticeVO.Field("开始时间", formatTime(task.getStartTime())),
+                new NoticeVO.Field("提示", "现在可以开始做了")
+        );
+        insertBatch(memberIds, task.getTaskId(), NoticeTemplateEnum.TASK_START, fields);
+    }
+
+    /**
+     * 任务被改过：通知全部参与者（含已经做完的人，他们的记录也受影响）
+     */
+    public void notifyEdited(TaskEntity task, String creatorName, List<Long> memberIds) {
+        if (CollectionUtils.isEmpty(memberIds)) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("委托人", creatorName),
+                new NoticeVO.Field("截止时间", formatTime(task.getDeadline())),
+                new NoticeVO.Field("提示", "你收到的任务有改动，看一眼")
+        );
+        insertBatch(memberIds, task.getTaskId(), NoticeTemplateEnum.TASK_EDITED, fields);
+    }
+
+    /**
+     * 任务被撤回：通知全部参与者（含已做完的人，他们那份也不用交了）
+     */
+    public void notifyCancelled(TaskEntity task, String creatorName, List<Long> memberIds) {
+        if (CollectionUtils.isEmpty(memberIds)) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("委托人", creatorName),
+                new NoticeVO.Field("撤回时间", formatTime(LocalDateTime.now())),
+                new NoticeVO.Field("提示", "委托人撤回了这条任务，不用再做了")
+        );
+        insertBatch(memberIds, task.getTaskId(), NoticeTemplateEnum.TASK_CANCELLED, fields);
+    }
+
     private void insertBatch(List<Long> memberIds, Long taskId, NoticeTemplateEnum template, List<NoticeVO.Field> fields) {
         List<NoticeVO.Field> limited = fields.size() > MAX_FIELDS ? fields.subList(0, MAX_FIELDS) : fields;
         String fieldsJson = JSON.toJSONString(limited);
@@ -131,6 +185,30 @@ public class TaskNoticeService {
             list.add(entity);
         }
         noticeDao.insertBatch(list);
+        pushAfterCommit(list);
+    }
+
+    /**
+     * 事务提交后再推订阅消息
+     * <p>
+     * 1. 不能在事务里做 HTTP：一个 10 人任务就是 10 次调用、单次超时 5s，最坏 50 秒卡死连接池；
+     * 2. 事务回滚时不能发出「不存在的任务」通知；
+     * 3. 推送本身在独立线程池里串行执行，失败只打日志，站内通知照常可看。
+     */
+    private void pushAfterCommit(List<NoticeEntity> list) {
+        if (CollectionUtils.isEmpty(list)) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    subscribePusher.pushAsync(list);
+                }
+            });
+            return;
+        }
+        subscribePusher.pushAsync(list);
     }
 
     private String formatTime(LocalDateTime time) {

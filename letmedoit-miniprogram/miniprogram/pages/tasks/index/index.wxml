@@ -1,7 +1,8 @@
 <view class="page">
   <!-- 自定义导航 -->
   <view class="navbar" style="padding-top:{{statusBarHeight}}px">
-    <view class="nav-inner" style="height:{{navHeight}}px">
+    <!-- padding-right 让开右上角胶囊，通知图标才不会被挡住 -->
+    <view class="nav-inner" style="height:{{navHeight}}px;padding-right:{{navRightPad}}">
       <view class="brand">
         <image class="brand-logo" src="/images/logo.png" mode="aspectFill" />
         <view class="wordmark">让我做<view class="dot"></view></view>

@@ -54,6 +54,11 @@ public class TaskService {
      */
     private static final long REMIND_INTERVAL_SECONDS = 60L;
 
+    /**
+     * 「某一天」模式允许的最晚开始时间点（当天几点之前必须开始）
+     */
+    private static final int START_LATEST_HOUR = 22;
+
     @Resource
     private TaskDao taskDao;
 
@@ -114,11 +119,9 @@ public class TaskService {
             return ResponseDTO.userErrorParam("截止时间不能早于现在");
         }
         if (addForm.getStartTime() != null) {
-            if (addForm.getStartTime().isBefore(LocalDateTime.now())) {
-                return ResponseDTO.userErrorParam("定时开始时间要在以后");
-            }
-            if (!addForm.getStartTime().isBefore(addForm.getDeadline())) {
-                return ResponseDTO.userErrorParam("开始时间要早于截止时间");
+            String startError = checkStartTime(addForm.getStartTime(), addForm.getDeadline());
+            if (startError != null) {
+                return ResponseDTO.userErrorParam(startError);
             }
         }
         ResponseDTO<TaskDetailVO> friendCheck = checkFriends(memberId, memberIds);
@@ -132,6 +135,8 @@ public class TaskService {
         task.setCreatorId(memberId);
         task.setCompletionMode(addForm.getCompletionMode());
         task.setStartTime(addForm.getStartTime());
+        // 到点通知默认开（产品默认「到点就发送通知」）
+        task.setStartNotifyFlag(addForm.getStartNotifyFlag() == null || addForm.getStartNotifyFlag());
         task.setDeadline(addForm.getDeadline());
         task.setRemindMinutes(addForm.getRemindMinutes() == null ? 0 : addForm.getRemindMinutes());
         task.setRemindTime(calcRemindTime(addForm.getDeadline(), task.getRemindMinutes()));
@@ -158,8 +163,11 @@ public class TaskService {
         if (!Objects.equals(task.getCreatorId(), memberId)) {
             return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "只有布置的人能修改");
         }
-        if (!canEdit(task)) {
-            return ResponseDTO.userErrorParam("已经有人接了，改不了了");
+        if (!TaskManager.canEdit(task)) {
+            return ResponseDTO.userErrorParam(
+                    TaskStatusEnum.IN_PROGRESS.getValue().equals(task.getStatus())
+                            ? "已经改过一次了，不能再改"
+                            : "任务已经结束，改不了了");
         }
         if (form.getDeadline() != null && form.getDeadline().isBefore(LocalDateTime.now())) {
             return ResponseDTO.userErrorParam("截止时间不能早于现在");
@@ -179,8 +187,44 @@ public class TaskService {
         }
         update.setStatus(task.getStatus());
         update.setCreatorId(memberId);
+        // 只有「进行中」的编辑才计数：预约中/待接受随便改，进行中只给一次
+        if (TaskStatusEnum.IN_PROGRESS.getValue().equals(task.getStatus())) {
+            update.setEditCount(task.getEditCount() == null ? 1 : task.getEditCount() + 1);
+        }
 
-        taskManager.update(merge(task, update), "编辑了任务");
+        // 开始时间点只有预约中的任务能改：改完到点仍然自动生效
+        boolean scheduledTask = TaskStatusEnum.SCHEDULED.getValue().equals(task.getStatus());
+        // 关掉「开始时间点」：清空开始时间，任务立刻退回待接受
+        boolean removeStart = scheduledTask && Boolean.TRUE.equals(form.getRemoveStartTime());
+
+        if (scheduledTask && !removeStart && form.getStartTime() != null) {
+            LocalDateTime newDeadline = form.getDeadline() != null ? form.getDeadline() : task.getDeadline();
+            String startError = checkStartTime(form.getStartTime(), newDeadline);
+            if (startError != null) {
+                return ResponseDTO.userErrorParam(startError);
+            }
+            update.setStartTime(form.getStartTime());
+        }
+        if (scheduledTask && form.getStartNotifyFlag() != null) {
+            update.setStartNotifyFlag(form.getStartNotifyFlag());
+        }
+
+        TaskEntity merged = merge(task, update);
+        if (removeStart) {
+            // updateById 会忽略 null，必须单独清一次；refreshStatus 随后把它算成待接受
+            taskDao.clearStartTime(task.getTaskId(), LocalDateTime.now());
+            merged.setStartTime(null);
+        }
+        taskManager.update(merged, "编辑了任务");
+
+        // 改动要让所有人都知道：出自己以外的参与者都收一条
+        List<Long> others = taskManager.queryParticipants(task.getTaskId()).stream()
+                .map(TaskParticipantEntity::getMemberId)
+                .filter(id -> !Objects.equals(id, memberId))
+                .distinct()
+                .collect(Collectors.toList());
+        taskNoticeService.notifyEdited(merged, displayNameOf(wxMemberService.getById(memberId)), others);
+
         return ResponseDTO.ok(taskQueryService.detail(taskDao.queryById(task.getTaskId(), Boolean.FALSE), memberId));
     }
 
@@ -267,6 +311,15 @@ public class TaskService {
             return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "只有布置的人能撤回");
         }
         taskManager.cancel(task, "撤回了任务");
+
+        // 撤回要让所有参与者都知道（含已做完的人，他们那份也不用交了）
+        List<Long> others = taskManager.queryParticipants(taskId).stream()
+                .map(TaskParticipantEntity::getMemberId)
+                .filter(id -> !Objects.equals(id, memberId))
+                .distinct()
+                .collect(Collectors.toList());
+        taskNoticeService.notifyCancelled(task, displayNameOf(wxMemberService.getById(memberId)), others);
+
         return ResponseDTO.ok(taskQueryService.detail(taskDao.queryById(taskId, Boolean.FALSE), memberId));
     }
 
@@ -315,7 +368,10 @@ public class TaskService {
         if (!Objects.equals(task.getCreatorId(), memberId)) {
             return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "只有布置的人能加人");
         }
-        if (!canEdit(task)) {
+        // 加人只在还没开始时允许（进行中即使还能编辑一次，也不能再拉人进来）
+        boolean notStarted = TaskStatusEnum.SCHEDULED.getValue().equals(task.getStatus())
+                || TaskStatusEnum.PENDING.getValue().equals(task.getStatus());
+        if (!notStarted) {
             return ResponseDTO.userErrorParam("已经开始了，加不了人");
         }
 
@@ -387,11 +443,6 @@ public class TaskService {
         return taskParticipantDao.queryByTaskAndMember(task.getTaskId(), memberId, Boolean.FALSE) != null;
     }
 
-    private boolean canEdit(TaskEntity task) {
-        return Arrays.asList(TaskStatusEnum.SCHEDULED.getValue(), TaskStatusEnum.PENDING.getValue())
-                .contains(task.getStatus());
-    }
-
     private List<Long> distinct(List<Long> ids) {
         if (CollectionUtils.isEmpty(ids)) {
             return new ArrayList<>();
@@ -407,13 +458,48 @@ public class TaskService {
     }
 
     /**
+     * 开始时间点校验，返回错误文案；通过返回 null
+     * <p>
+     * 规则：必须在以后、必须早于截止；「某一天」任务的截止是当天 23:59:59，
+     * 此时开始时间点不能晚于当天 22:00（否则留不出做事的时间）。
+     */
+    private String checkStartTime(LocalDateTime startTime, LocalDateTime deadline) {
+        if (startTime.isBefore(LocalDateTime.now())) {
+            return "开始时间点要在以后";
+        }
+        if (deadline == null || !startTime.isBefore(deadline)) {
+            return "开始时间点要早于截止时间";
+        }
+        if (isWholeDayDeadline(deadline)) {
+            LocalDateTime latest = deadline.toLocalDate().atTime(START_LATEST_HOUR, 0);
+            if (startTime.isAfter(latest)) {
+                return "「某一天」的任务，开始时间点要在当天 " + START_LATEST_HOUR + ":00 之前";
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 截止时间是不是「某一天」模式（当天 23:59:59，前后端约定）
+     */
+    private boolean isWholeDayDeadline(LocalDateTime deadline) {
+        return deadline != null
+                && deadline.getHour() == 23
+                && deadline.getMinute() == 59
+                && deadline.getSecond() == 59;
+    }
+
+    /**
      * 提醒时间 = 截止时间 - 提前分钟数；不提醒返回 null
      */
     private LocalDateTime calcRemindTime(LocalDateTime deadline, Integer remindMinutes) {
         if (deadline == null || remindMinutes == null || remindMinutes <= 0) {
             return null;
         }
-        return deadline.minusMinutes(remindMinutes);
+        LocalDateTime remindTime = deadline.minusMinutes(remindMinutes);
+        // 算出来的提醒时间已经过去（比如截止还有 23 小时却选了「提前 1 天」），
+        // 就不补发——否则一发布就收到一条「到期提醒」，很吓人
+        return remindTime.isAfter(LocalDateTime.now()) ? remindTime : null;
     }
 
     /**
@@ -430,7 +516,9 @@ public class TaskService {
         merged.setRemindTime(update.getRemindTime() != null ? update.getRemindTime() : task.getRemindTime());
         merged.setStatus(task.getStatus());
         merged.setCreatorId(task.getCreatorId());
-        merged.setStartTime(task.getStartTime());
+        merged.setStartTime(update.getStartTime() != null ? update.getStartTime() : task.getStartTime());
+        merged.setStartNotifyFlag(update.getStartNotifyFlag() != null ? update.getStartNotifyFlag() : task.getStartNotifyFlag());
+        merged.setEditCount(update.getEditCount() != null ? update.getEditCount() : task.getEditCount());
         return merged;
     }
 }

@@ -1,4 +1,5 @@
 const taskApi = require('../../../services/task')
+const notifyApi = require('../../../services/notify')
 const noticeApi = require('../../../services/notice')
 const { STATUS_FILTERS, TIME_RANGES } = require('../../../constants/task')
 const { presentTask, presentUser } = require('../../../utils/present')
@@ -18,6 +19,7 @@ Page({
   data: {
     statusBarHeight: 20,
     navHeight: 44,
+    navRightPad: '32rpx',
     role: 'assignee',
     status: 'all',
     // 创建时间筛选：默认不限，排序始终是倒序（后端 update_time DESC）
@@ -43,6 +45,8 @@ Page({
     this.setData({
       statusBarHeight: app.globalData.statusBarHeight,
       navHeight: app.globalData.navHeight,
+      // 取不到胶囊宽度时回退到原来的 32rpx，不能把右边距清成 0
+      navRightPad: app.globalData.capsuleSpace ? app.globalData.capsuleSpace + 'px' : '32rpx',
     })
     this.bootstrap()
   },
@@ -245,6 +249,8 @@ Page({
     const id = e.currentTarget.dataset.id
     if (this.data.acting) return
     this.setData({ acting: id })
+    // 同上：保持在 tap 回调的第一个 await，模板未配置时自动跳过
+    await notifyApi.requestSubscribe(['TASK_REMIND', 'TASK_ASSIGNED'])
     try {
       await taskApi.accept(id)
       wx.showToast({ title: '已接下，开始吧', icon: 'none' })

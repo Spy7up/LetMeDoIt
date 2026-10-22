@@ -8,14 +8,15 @@
           <view class="av av-32" wx:for="{{participants}}" wx:key="id" style="{{item.avatarStyle}}">
             {{item.initial}}
           </view>
-          <view class="add-person">
+          <view class="add-person" wx:if="{{!editing}}">
             <image class="ic-sm" src="/images/icons/plus-muted.png" />
           </view>
         </view>
         <text class="pick-hint">{{participants.length ? '已选 ' + participants.length + ' 人' : '从好友里选'}}</text>
         <image class="ic-sm" src="/images/icons/chevron-ghost.png" />
       </view>
-      <text class="pick-tip" wx:if="{{participants.length > 1}}">
+      <text class="pick-tip" wx:if="{{editing}}">已经交给的人不能在这里改</text>
+      <text class="pick-tip" wx:elif="{{participants.length > 1}}">
         {{mode === 'all' ? '每人都要完成自己那份' : '谁先做完，这单就算完成'}}
       </text>
     </view>
@@ -63,11 +64,30 @@
       </view>
     </view>
 
-    <!-- 截止时间 -->
+    <!-- 截止时间：两种说法 -->
     <view class="field">
       <view class="flabel">什么时候要</view>
-      <view class="row-line" style="margin-bottom:0">
-        <picker mode="date" value="{{deadlineDate}}" start="{{today}}" bindchange="onDate">
+      <view class="opt-row" style="margin-bottom:16rpx">
+        <view
+          class="opt {{dueMode === 'time' ? 'on' : ''}}"
+          data-mode="time"
+          bindtap="setDueMode"
+        >
+          <text class="opt-title">某个时间点</text>
+          <text class="opt-sub">至少 2 小时后</text>
+        </view>
+        <view
+          class="opt {{dueMode === 'day' ? 'on' : ''}}"
+          data-mode="day"
+          bindtap="setDueMode"
+        >
+          <text class="opt-title">某一天</text>
+          <text class="opt-sub">当天做完就行</text>
+        </view>
+      </view>
+
+      <view class="row-line" wx:if="{{dueMode === 'time'}}" style="margin-bottom:0">
+        <picker mode="date" value="{{deadlineDate}}" start="{{deadlineMinDate}}" bindchange="onDate">
           <view class="pick-cell">{{deadlineDate}}</view>
         </picker>
         <picker mode="time" value="{{deadlineTime}}" bindchange="onTime">
@@ -75,10 +95,20 @@
         </picker>
         <text class="pick-human">{{deadlineText}}</text>
       </view>
+
+      <view class="row-line" wx:else style="margin-bottom:0">
+        <picker mode="date" value="{{dayDate}}" start="{{dayMinDate}}" bindchange="onDayDate">
+          <view class="pick-cell">{{dayDate}}</view>
+        </picker>
+        <text class="pick-human">{{dayText}} 做完就行</text>
+      </view>
+
+      <text class="pick-tip" wx:if="{{dueMode === 'time'}}">最早只能选 2 小时后</text>
+      <text class="pick-tip" wx:else>只在这一天结束前完成即可，不设提前提醒</text>
     </view>
 
-    <!-- 提醒 -->
-    <view class="field">
+    <!-- 提醒：只有精确时间点才有必要提前提醒 -->
+    <view class="field" wx:if="{{dueMode === 'time'}}">
       <view class="flabel">提醒 TA</view>
       <view class="chips chips-wrap" style="padding-bottom:0">
         <view
@@ -91,25 +121,43 @@
         >
       </view>
     </view>
+    <view class="field" wx:else>
+      <view class="flabel">提醒 TA</view>
+      <text class="pick-tip">「某一天」的任务只在布置时通知一次，不会提前提醒</text>
+    </view>
 
-    <!-- 定时 -->
-    <view class="field">
+    <!-- 开始时间点：新建时都能设；编辑时只有「预约中」能改 -->
+    <view class="field" wx:if="{{!editing || taskStatus === 'scheduled'}}">
       <view class="row-line" style="margin-bottom:0">
         <view>
-          <text class="row-label">定时生效</text>
-          <text class="row-sub">到点才开始通知他们</text>
+          <text class="row-label">开始时间点</text>
+          <text class="row-sub">到点才开始，之前挂着不打扰</text>
         </view>
         <switch checked="{{scheduled}}" color="#FF6B4A" bindchange="toggleSchedule" />
       </view>
-      <view class="row-line start-row" wx:if="{{scheduled}}">
-        <picker mode="date" value="{{startDate}}" start="{{today}}" bindchange="onStartDate">
-          <view class="pick-cell">{{startDate}}</view>
-        </picker>
-        <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
-          <view class="pick-cell">{{startTime}}</view>
-        </picker>
-        <text class="pick-human">{{startText}} 开始</text>
-      </view>
+
+      <block wx:if="{{scheduled}}">
+        <view class="row-line start-row">
+          <picker mode="date" value="{{startDate}}" start="{{today}}" bindchange="onStartDate">
+            <view class="pick-cell">{{startDate}}</view>
+          </picker>
+          <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
+            <view class="pick-cell">{{startTime}}</view>
+          </picker>
+          <text class="pick-human">{{startText}} 开始</text>
+        </view>
+        <view class="row-line" style="margin-bottom:0">
+          <view>
+            <text class="row-label">到点通知</text>
+            <text class="row-sub">到开始时间点给大家发条通知</text>
+          </view>
+          <switch checked="{{startNotify}}" color="#FF6B4A" bindchange="toggleStartNotify" />
+        </view>
+      </block>
+
+      <text class="pick-tip">
+        {{dueMode === 'day' ? '开始时间点要早于当天 22:00' : '开始时间点要早于截止时间'}}
+      </text>
     </view>
 
     <view class="actionbar-space"></view>
@@ -120,8 +168,9 @@
       class="btn btn-primary btn-lg {{canSubmit && !submitting ? '' : 'disabled'}}"
       bindtap="submit"
     >
-      {{submitting ? '发布中…' : participants.length > 1 ? '发布并提醒 ' + participants.length + ' 人' : '发布并提醒 TA'}}
+      {{editing ? (submitting ? '保存中…' : '保存修改') : (submitting ? '发布中…' : participants.length > 1 ? '发布并提醒 ' + participants.length + ' 人' : '发布并提醒 TA')}}
     </view>
-    <text class="hint">发布时会请求一次消息提醒授权，拒绝也不影响使用</text>
+    <text class="hint" wx:if="{{editing}}">改完会通知已经在做的人</text>
+    <text class="hint" wx:else>发布时会请求一次消息提醒授权，拒绝也不影响使用</text>
   </view>
 </view>

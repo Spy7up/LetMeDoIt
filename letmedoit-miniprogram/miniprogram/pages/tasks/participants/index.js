@@ -56,21 +56,38 @@ Page({
           // 拿不到就不过滤
         }
       }
-      const selected = friends.filter((f) => this.initialSelected.indexOf(f.userId) >= 0).map((f) => f.userId)
-      this.setData({ all: friends, friends, selected, loading: false })
+      const selected = friends.filter((f) => this.initialSelected.indexOf(f.id) >= 0).map((f) => f.id)
+      this.setData(Object.assign({ loading: false }, this.paint(friends, selected, '')))
     } catch (e) {
       this.setData({ loading: false })
       wx.showToast({ title: e.message || '好友加载失败', icon: 'none' })
     }
   },
 
+  /**
+   * 勾选态必须提前算到每个 item 上：
+   * WXML 表达式不支持函数调用，`selected.indexOf(item.id)` 会恒为假，选框永远不亮。
+   *
+   * @param {Array} all      全量好友
+   * @param {Array} selected 已选中的 id
+   * @param {string} keyword 搜索词（空串表示不筛）
+   * @returns {Object} 可直接 setData 的对象
+   */
+  paint(all, selected, keyword) {
+    const marked = all.map((f) =>
+      Object.assign({}, f, { checked: selected.indexOf(f.id) >= 0 })
+    )
+    const friends = keyword
+      ? marked.filter(
+          (f) => f.nickname.indexOf(keyword) >= 0 || (f.remark || '').indexOf(keyword) >= 0
+        )
+      : marked
+    return { all: marked, friends, selected, keyword }
+  },
+
   onKeyword(e) {
     const kw = e.detail.value.trim()
-    const all = this.data.all
-    this.setData({
-      keyword: kw,
-      friends: kw ? all.filter((f) => f.nickname.indexOf(kw) >= 0 || (f.remark || '').indexOf(kw) >= 0) : all,
-    })
+    this.setData(this.paint(this.data.all, this.data.selected, kw))
   },
 
   toggle(e) {
@@ -86,7 +103,7 @@ Page({
       }
       selected.push(id)
     }
-    this.setData({ selected })
+    this.setData(this.paint(this.data.all, selected, this.data.keyword))
   },
 
   async confirm() {

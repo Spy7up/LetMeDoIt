@@ -22,7 +22,15 @@
     <block wx:elif="{{task}}">
       <!-- 头部 -->
       <view class="hero">
-        <text class="tag {{task.statusClass}}">{{task.statusLabel}}</text>
+        <view class="hero-head">
+          <text class="tag {{task.statusClass}}">{{task.statusLabel}}</text>
+          <view class="hero-ops">
+            <view wx:if="{{task.canEdit}}" class="hero-edit" bindtap="goEdit">编辑</view>
+            <view wx:if="{{task.canCancel}}" class="hero-edit hero-cancel" bindtap="confirmCancel">
+              撤回
+            </view>
+          </view>
+        </view>
         <text class="hero-title">{{task.title}}</text>
         <view class="byline">
           <view class="av av-24" style="{{task.creator.avatarStyle}}">{{task.creator.initial}}</view>
@@ -44,6 +52,13 @@
 
       <!-- 基本信息 -->
       <view class="info-card">
+        <view class="info-row" wx:if="{{task.startText}}">
+          <view class="k">
+            <image class="ic-sm" src="/images/icons/clock-muted.png" />
+            <text>开始</text>
+          </view>
+          <text class="v">{{task.startText}}{{task.startNotify ? ' · 到点通知' : ''}}</text>
+        </view>
         <view class="info-row">
           <view class="k">
             <image class="ic-sm" src="/images/icons/clock-muted.png" />
@@ -129,10 +144,20 @@
       </block>
 
       <block wx:elif="{{barMode === 'creator'}}">
-        <view wx:if="{{task.canAddParticipant}}" class="btn btn-ghost" style="flex:0 0 34%" bindtap="goAdd">
+        <view
+          wx:if="{{task.canAddParticipant}}"
+          class="btn btn-ghost"
+          style="flex:0 0 34%"
+          bindtap="goAdd"
+        >
           加人
         </view>
         <view class="btn btn-primary" bindtap="onRemind">催一下</view>
+      </block>
+
+      <!-- 预约中：还不能催，只能继续加人 -->
+      <block wx:elif="{{barMode === 'addonly'}}">
+        <view class="btn btn-primary" bindtap="goAdd">再加几个人</view>
       </block>
     </view>
     <text class="hint" wx:if="{{barMode === 'complete'}}">只标记你自己这份，其他人不受影响</text>

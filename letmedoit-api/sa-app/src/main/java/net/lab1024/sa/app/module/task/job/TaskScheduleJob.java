@@ -104,11 +104,35 @@ public class TaskScheduleJob {
         for (TaskEntity task : tasks) {
             try {
                 taskManager.activate(task);
+                // 到点通知由委托人开关控制，默认开
+                if (!Boolean.FALSE.equals(task.getStartNotifyFlag())) {
+                    notifyStarted(task);
+                }
             } catch (Exception e) {
                 log.error("预约任务生效失败, taskId={}", task.getTaskId(), e);
             }
         }
         log.info("预约任务生效 {} 条", tasks.size());
+    }
+
+    /**
+     * 开始时间点到点：给除委托人以外的参与者各发一条通知
+     */
+    private void notifyStarted(TaskEntity task) {
+        List<Long> memberIds = taskParticipantDao.queryEntityByTaskId(task.getTaskId(), Boolean.FALSE)
+                .stream()
+                .map(TaskParticipantEntity::getMemberId)
+                .filter(id -> !Objects.equals(id, task.getCreatorId()))
+                .distinct()
+                .collect(Collectors.toList());
+        log.info("start-notify taskId={} flag={} members={}", task.getTaskId(), task.getStartNotifyFlag(), memberIds);
+        if (CollectionUtils.isEmpty(memberIds)) {
+            return;
+        }
+        WxMemberEntity creator = wxMemberService.getById(task.getCreatorId());
+        String name = creator == null || !StringUtils.hasText(creator.getNickname())
+                ? "有人" : creator.getNickname();
+        taskNoticeService.notifyStarted(task, name, memberIds);
     }
 
     /**

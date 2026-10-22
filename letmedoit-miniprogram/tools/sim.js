@@ -334,6 +334,45 @@ async function run() {
   picker.toggle(evt({ id: picker.data.friends[0].id }))
   picker.toggle(evt({ id: picker.data.friends[1].id }))
   check(picker.data.selected.length === 2, '选了两个')
+
+  // 勾选态必须挂在 item 上（WXML 里不能调用 indexOf，不预计算选框就不亮）
+  const checkedIds = picker.data.friends.filter((f) => f.checked).map((f) => f.id)
+  check(checkedIds.length === 2, '列表里勾上了 ' + checkedIds.length + ' 个')
+  check(
+    picker.data.friends.every((f) => f.checked === (picker.data.selected.indexOf(f.id) >= 0)),
+    '每行的 checked 与 selected 一致'
+  )
+  // 再点一次取消 → 该行勾选态跟着消失
+  picker.toggle(evt({ id: picker.data.friends[1].id }))
+  check(
+    picker.data.friends[1].checked === false && picker.data.selected.length === 1,
+    '取消选中后勾选态同步'
+  )
+  picker.toggle(evt({ id: picker.data.friends[1].id }))
+  // 搜索过滤后勾选态不丢
+  picker.onKeyword(evt({}, { value: picker.data.friends[0].nickname }))
+  check(
+    picker.data.friends.length > 0 && picker.data.friends[0].checked === true,
+    '搜索后仍保留勾选'
+  )
+  picker.onKeyword(evt({}, { value: '' }))
+  check(picker.data.friends.length === picker.data.all.length, '清空搜索恢复全量')
+
+  // 带 selected 进来时要回填勾选（截图里的场景）
+  const picker2 = loadPage('pages/tasks/participants/index')
+  picker2.onLoad({ mode: 'create', selected: picker2 && '' })
+  await wait(300)
+  const firstId = picker2.data.friends[0].id
+  const picker3 = loadPage('pages/tasks/participants/index')
+  picker3.onLoad({ mode: 'create', selected: String(firstId) })
+  await wait(400)
+  check(picker3.data.selected.length === 1, '进页面回填已选 ' + picker3.data.selected.length + ' 个')
+  check(
+    picker3.data.friends.filter((f) => f.checked).length === 1 &&
+      picker3.data.friends.filter((f) => f.checked)[0].id === firstId,
+    '回填的那一行勾上了'
+  )
+
   const pickedUsers = picker.data.all.filter((f) => picker.data.selected.indexOf(f.id) >= 0)
   create.applyParticipants(pickedUsers)
   check(create.data.participants.length === 2, '创建页收到 2 个参与者')
@@ -344,6 +383,196 @@ async function run() {
   await create.submit()
   await wait(700)
   check(calls.toast.some((t) => t.indexOf('已交给') >= 0), '发布成功：' + JSON.stringify(calls.toast.slice(-1)))
+
+  // 「什么时候要」两种说法（重新开一个创建页实例，避免上次 submitting 还没复位）
+  const pad2 = (n) => (n < 10 ? '0' + n : '' + n)
+  const ymdOf = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate())
+  const hmsOf = (d) => pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':00'
+  const taskSvc = require(path.join(ROOT, 'services/task'))
+
+  const create2 = loadPage('pages/tasks/create/index')
+  create2.onLoad({})
+  await wait(200)
+  create2.applyParticipants(pickedUsers)
+  check(create2.data.dueMode === 'time', '默认是「某个时间点」')
+
+  // 1) 时间点模式：不足 2 小时要被拦住
+  const soon = new Date(Date.now() + 60 * 60 * 1000)
+  create2.onDate(evt({}, { value: ymdOf(soon) }))
+  create2.onTime(evt({}, { value: hmsOf(soon).slice(0, 5) }))
+  create2.onTitle(evt({}, { value: '一小时之内的事' }))
+  const toastBeforeSoon = calls.toast.length
+  await create2.submit()
+  await wait(300)
+  check(
+    calls.toast.slice(toastBeforeSoon).some((t) => t.indexOf('2 小时') >= 0),
+    '时间点不足 2 小时被拦：' + calls.toast[calls.toast.length - 1]
+  )
+
+  // 2) 某一天模式：当天 23:59:59 截止，且不设提前提醒
+  create2.setDueMode(evt({ mode: 'day' }))
+  await wait(100)
+  check(create2.data.dueMode === 'day' && !!create2.data.dayDate, '切到「某一天」：' + create2.data.dayText)
+  create2.onTitle(evt({}, { value: '周末收拾阳台' }))
+  await create2.submit()
+  await wait(700)
+  const dayList = await taskSvc.list({ role: 'creator', status: 'all' })
+  const dayTask = dayList.list.find((t) => t.title === '周末收拾阳台')
+  check(!!dayTask, '某一天模式发布成功')
+  if (dayTask) {
+    const dayDetail = await taskSvc.detail(dayTask.id)
+    const dd = new Date(dayDetail.deadline)
+    check(
+      dd.getHours() === 23 && dd.getMinutes() === 59 && dd.getSeconds() === 59,
+      '截止落在当天 23:59:59'
+    )
+    check(dayDetail.remindMinutes === 0, '某一天不设提前提醒 remindMinutes=' + dayDetail.remindMinutes)
+  }
+  const fmtUtil = require(path.join(ROOT, 'utils/format'))
+  const wholeDayIso = new Date(new Date().setHours(23, 59, 59, 0)).toISOString()
+  check(/当天完成/.test(fmtUtil.formatDeadline(wholeDayIso)), '展示文案：' + fmtUtil.formatDeadline(wholeDayIso))
+
+  // 3) 预约中的任务：能筛出来、也能撤回
+  const startAt = new Date(Date.now() + 3 * 3600 * 1000)
+  const deadlineAt = new Date(Date.now() + 6 * 3600 * 1000)
+  const schedTask = await taskSvc.create({
+    title: '预约-取快递',
+    participantIds: [create2.data.participants[0].id],
+    completionMode: 'all',
+    deadline: ymdOf(deadlineAt) + ' ' + hmsOf(deadlineAt),
+    startAt: ymdOf(startAt) + ' ' + hmsOf(startAt),
+    startNotify: false,
+    remindMinutes: 10,
+  })
+  check(schedTask.status === 'scheduled', '未来开始时间 → 预约中 ' + schedTask.status)
+  check(schedTask.startNotify === false, '开始时间点到点通知可以关掉')
+  check(!!schedTask.startAt, '开始时间点已保存')
+  check(schedTask.canCancel === true, '预约中任务可撤回')
+  check(!schedTask.me || schedTask.me.canAccept === false, '预约中任务没有可接受的动作')
+  const schedList = await taskSvc.list({ role: 'creator', status: 'scheduled' })
+  check(
+    schedList.list.some((t) => t.id === schedTask.id),
+    '「预约中」筛选查到 ' + schedList.total + ' 条'
+  )
+  const schedCancelled = await taskSvc.cancel(schedTask.id)
+  check(schedCancelled.status === 'cancelled', '预约中撤回成功 → ' + schedCancelled.status)
+
+  // 撤回要通知全部参与者（不含委托人）
+  const cancelNotices = (server.getState().notices || []).filter(
+    (n) => Number(n.taskId) === Number(schedTask.id) && n.templateKey === 'TASK_CANCELLED'
+  )
+  check(cancelNotices.length >= 1, '撤回后参与者收到 ' + cancelNotices.length + ' 条取消通知')
+  check(
+    cancelNotices.every((n) => Number(n.toMemberId) !== 1),
+    '委托人自己不会收到取消通知'
+  )
+  if (cancelNotices.length) {
+    const preview = cancelNotices[0].fields.map((f) => f.label + ':' + f.value).join(' | ')
+    check(/撤回时间/.test(preview), '取消通知字段：' + preview)
+  }
+
+  // 关掉「开始时间点」：预约中 → 待接受
+  const startTask2 = await taskSvc.create({
+    title: '预约-待取消开始时间',
+    participantIds: [create2.data.participants[0].id],
+    completionMode: 'all',
+    deadline: ymdOf(deadlineAt) + ' ' + hmsOf(deadlineAt),
+    startAt: ymdOf(startAt) + ' ' + hmsOf(startAt),
+    remindMinutes: 0,
+  })
+  check(startTask2.status === 'scheduled', '新建带开始时间的任务 → 预约中')
+  const noStart = await taskSvc.update(startTask2.id, { removeStartTime: true, startAt: null })
+  check(noStart.status === 'pending', '关掉开始时间点 → ' + noStart.status)
+  check(!noStart.startAt, '开始时间点已清空')
+  const noStartDetail = await taskSvc.detail(startTask2.id)
+  check(!noStartDetail.startAt && noStartDetail.status === 'pending', '详情也回到待接受')
+  await taskSvc.cancel(startTask2.id)
+
+  // 详情页展示：有开始时间才显示这一行
+  const present = require(path.join(ROOT, 'utils/present'))
+  const withStart = present.presentDetail({
+    title: 'x',
+    participants: [],
+    deadline: new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
+    startAt: new Date(Date.now() + 2 * 3600 * 1000).toISOString(),
+  })
+  check(!!withStart.startText, '有开始时间点 → 文案 ' + withStart.startText)
+  const withoutStart = present.presentDetail({
+    title: 'x',
+    participants: [],
+    deadline: new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
+    startAt: null,
+  })
+  check(withoutStart.startText === '', '没设开始时间点 → 详情不显示该行')
+
+  // 「某一天」的开始时间点不能晚于当天 22:00
+  const create3 = loadPage('pages/tasks/create/index')
+  create3.onLoad({})
+  await wait(200)
+  create3.applyParticipants(pickedUsers)
+  create3.setDueMode(evt({ mode: 'day' }))
+  await wait(100)
+  create3.onTitle(evt({}, { value: '很晚才开始的任务' }))
+  create3.toggleSchedule(evt({}, { value: true }))
+  create3.onStartDate(evt({}, { value: create3.data.dayDate }))
+  create3.onStartTime(evt({}, { value: '22:30' }))
+  const toastBeforeLate = calls.toast.length
+  await create3.submit()
+  await wait(300)
+  check(
+    calls.toast.slice(toastBeforeLate).some((t) => t.indexOf('22:00') >= 0),
+    '「某一天」22:00 之后开始被拦：' + calls.toast[calls.toast.length - 1]
+  )
+
+  // 编辑：只有布置者能改；待接受可反复改，进行中只给一次
+  const editTarget = (await taskSvc.list({ role: 'creator', status: 'pending' })).list[0]
+  check(!!editTarget, '有可编辑的待接受任务')
+  if (editTarget) {
+    const beforeEdit = await taskSvc.detail(editTarget.id)
+    check(beforeEdit.canEdit === true, '待接受任务 canEdit=true')
+
+    const editPage = loadPage('pages/tasks/create/index')
+    editPage.onLoad({ taskId: editTarget.id })
+    await wait(400)
+    check(editPage.data.editing === true, '编辑页进入编辑模式')
+    check(editPage.data.title === beforeEdit.title, '回填标题：' + editPage.data.title)
+    check(
+      editPage.data.participants.length === beforeEdit.participants.length,
+      '回填参与者 ' + editPage.data.participants.length + ' 人（只读）'
+    )
+
+    editPage.onTitle(evt({}, { value: '改过标题的任务' }))
+    await editPage.submit()
+    await wait(700)
+    const afterEdit = await taskSvc.detail(editTarget.id)
+    check(afterEdit.title === '改过标题的任务', '编辑生效：' + afterEdit.title)
+
+    // 进行中：还能改一次，改完就锁
+    const st = server.getState()
+    const raw = st.tasks.find((t) => t.taskId === Number(editTarget.id))
+    raw.participants[0].status = 1 // ACCEPTED
+    raw.status = 2 // IN_PROGRESS
+    const inProgress = await taskSvc.detail(editTarget.id)
+    check(inProgress.canEdit === true, '进行中还能再改一次')
+    check(inProgress.canCancel === true, '进行中的任务也能撤回')
+
+    // 撤回挪到标题右侧后：底部操作栏只看「能不能催」，撤回由 canCancel 控制显隐
+    const inProgressPage = loadPage('pages/tasks/detail/index')
+    inProgressPage.onLoad({ id: editTarget.id })
+    await wait(400)
+    check(inProgressPage.data.task.barMode === 'creator', '进行中底部只留催一下：' + inProgressPage.data.task.barMode)
+    check(inProgressPage.data.task.canCancel === true, '顶部撤回入口可见')
+    await taskSvc.update(editTarget.id, { title: '进行中改了一次' })
+    const afterOneEdit = await taskSvc.detail(editTarget.id)
+    check(afterOneEdit.canEdit === false, '改过一次后 canEdit=false')
+    let secondErr = ''
+    try {
+      await taskSvc.update(editTarget.id, { title: '再改一次' })
+    } catch (e) {
+      secondErr = e.message || ''
+    }
+    check(/改过一次/.test(secondErr), '二次编辑被拒：' + secondErr)
+  }
 
   // 追加参与者：同一个接口，数组形式
   const svc = require(path.join(ROOT, 'services/task'))
@@ -401,7 +630,12 @@ async function run() {
 
   const settings = loadPage('pages/mine/settings/index')
   settings.onLoad({})
-  check(settings.data.list.length === 4, '四个订阅模板')
+  // 个人主体只能用一次性订阅，只申请 4 个模板；开始/变更/撤回只走站内
+  check(settings.data.list.length === 4, '四个订阅模板（不含开始/变更/取消）')
+  check(
+    settings.data.list.every((item) => item.configured === false),
+    '模板未配置时标记为审核中'
+  )
   await settings.toggle(evt({ key: 'TASK_ASSIGNED', index: 0 }))
   check(true, '模板占位未配置时不报错')
 

@@ -119,6 +119,8 @@ function presentDetail(d) {
     statusLabel: style.label,
     statusClass: 't-' + display,
     deadlineText: formatDeadline(d.deadline),
+    // 只有设了开始时间点才展示，没有就是空串（模板里 wx:if 控制）
+    startText: d.startAt ? formatDeadline(d.startAt) : '',
     createdText: formatRelative(d.createdAt),
     modeText: modeText(d.completionMode),
     modeHint: (COMPLETION_MODE_MAP[d.completionMode] || COMPLETION_MODE_MAP.any).hint,
