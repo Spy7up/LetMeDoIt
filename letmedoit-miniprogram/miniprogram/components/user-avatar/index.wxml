@@ -1,0 +1,13 @@
+<view
+  class="ua ua-{{size}} {{ring ? 'ua-ring' : ''}} {{overlap ? 'ua-overlap' : ''}} {{flag ? 'ua-flag ua-' + flag : ''}}"
+  style="{{user.avatarStyle}}"
+>
+  <image
+    wx:if="{{user.avatarUrl && !failed}}"
+    class="ua-img"
+    src="{{user.avatarUrl}}"
+    mode="aspectFill"
+    binderror="onError"
+  />
+  <text wx:else class="ua-txt">{{user.initial || '?'}}</text>
+</view>

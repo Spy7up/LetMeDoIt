@@ -34,9 +34,12 @@
           <image class="thumb-img" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="previewImage" />
           <view class="thumb-del" data-index="{{index}}" catchtap="removeImage">×</view>
         </view>
-        <view class="thumb add" wx:if="{{images.length < maxImages}}" bindtap="chooseImage">
+        <view class="thumb add" wx:if="{{images.length < maxImages && !uploading}}" bindtap="chooseImage">
           <image class="ic-md" src="/images/icons/camera-muted.png" />
           <text class="thumb-add-txt">添加</text>
+        </view>
+        <view class="thumb add" wx:if="{{uploading}}">
+          <text class="thumb-add-txt">上传中…</text>
         </view>
       </view>
     </view>

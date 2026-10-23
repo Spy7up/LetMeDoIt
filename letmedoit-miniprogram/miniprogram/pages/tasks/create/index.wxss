@@ -40,6 +40,12 @@
   padding-left: 4rpx;
 }
 
+/* 标题行用 flex，右侧的「图片选填 · 最多 6 张」才能贴到右边 */
+.field .flabel {
+  display: flex;
+  align-items: center;
+}
+
 .pick-inline {
   display: flex;
   align-items: center;

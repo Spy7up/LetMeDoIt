@@ -248,15 +248,26 @@ async function run() {
     ':' + pad(deadline.getMinutes()) +
     ':' + pad(deadline.getSeconds())
 
+  // 布置时的参考图：走对象存储的公网地址，服务端只认 http(s) 且排掉微信临时路径
+  const shotUrls = [
+    'https://letmedoit-1308200923.cos.ap-guangzhou.myqcloud.com/public/app/task-image/e2e-a.png',
+    'https://letmedoit-1308200923.cos.ap-guangzhou.myqcloud.com/public/app/task-image/e2e-b.png',
+  ]
   const created = await taskSvc.create({
     title: '联调-晾衣服',
     description: '阳台的衣服',
+    images: shotUrls,
     participantIds: [kid.id, third.id],
     completionMode: 'all',
     deadline: dl,
     remindMinutes: 10,
   })
   check(!!created && !!created.id, '创建成功 taskId=' + (created && created.id))
+  check(created && created.images.length === 2, '附图 ' + (created && created.images.length) + ' 张')
+  check(
+    created && created.images[0] === shotUrls[0],
+    '附图原样返回（顺序不变）'
+  )
   check(created && created.participants.length === 2, '参与者 ' + (created && created.participants.length) + ' 人')
   check(created && created.status === 'pending', '初始聚合状态 = ' + (created && created.status))
   check(created && created.isCreator === true, '创建者视角 isCreator=true')
@@ -278,6 +289,7 @@ async function run() {
 
   const detail = await taskSvc.detail(taskId)
   check(detail.me && detail.me.canAccept === true, 'canAccept=true（服务端算的权限位）')
+  check(detail.images.length === 2, '收到方也能看到附图 ' + detail.images.length + ' 张')
   check(detail.me && detail.me.canComplete === false, 'canComplete=false（还没接受）')
   check(detail.canCancel === false, '非创建者不能撤回')
   check(detail.participants.length === 2, '参与者明细 ' + detail.participants.length + ' 人')
@@ -292,8 +304,16 @@ async function run() {
   check(accepted.me && accepted.me.status === 'accepted', '我的格子 accepted')
   check(accepted.me && accepted.me.canComplete === true, '接受后 canComplete=true')
 
-  const done = await taskSvc.complete(taskId, { remark: '晾好了', images: [] })
+  const proofShots = [
+    'https://letmedoit-1308200923.cos.ap-guangzhou.myqcloud.com/public/app/task-image/e2e-1.png',
+    'https://letmedoit-1308200923.cos.ap-guangzhou.myqcloud.com/public/app/task-image/e2e-2.png',
+  ]
+  const done = await taskSvc.complete(taskId, { remark: '晾好了', images: proofShots })
   check(done.me && done.me.status === 'done', '完成接口把本格置 done')
+  check(
+    done.me && (done.me.images || []).length === 2,
+    '完成时提交的凭证图回来了 ' + ((done.me && done.me.images) || []).length + ' 张'
+  )
   check(done.progress.done === 1, '完成数 ' + done.progress.done + '/2 仍进行中（全员完成模式）')
   check(done.status === 'in_progress', '聚合状态仍是 ' + done.status)
 
@@ -301,6 +321,12 @@ async function run() {
   await as('granny', '奶奶')
   const fromCreator = await taskSvc.detail(taskId)
   check(fromCreator.progress.done === 1, '委托方看到完成进度 ' + fromCreator.progress.done + '/' + fromCreator.progress.total)
+  // 详情页「参与者行」直接展示完成凭证，所以委托方这边必须能拿到图
+  const withShots = fromCreator.participants.filter((p) => (p.images || []).length)
+  check(
+    withShots.length === 1 && withShots[0].images.length === 2,
+    '委托方能看到凭证图 ' + withShots.length + ' 人 / ' + ((withShots[0] && withShots[0].images.length) || 0) + ' 张'
+  )
   check(fromCreator.canEdit === true, '进行中还能再改一次 canEdit=true（改完即锁）')
   check(fromCreator.canRemind === true, '可催办 canRemind=true')
 
@@ -590,6 +616,32 @@ async function run() {
   check(edited1.title === '联调-改过的标题', '待接受可以反复改：' + edited1.title)
   const edited2 = await taskSvc.update(editTask.id, { description: '再改一句' })
   check(edited2.description === '再改一句', '第二次编辑也成功')
+
+  // 编辑也能改图：微信临时路径 / 非 http(s) 必须被服务端洗掉
+  const editedShots = await taskSvc.update(editTask.id, {
+    images: [
+      'wxfile://tmp_a.jpg',
+      'http://tmp/b.jpg',
+      'https://cdn.test/keep.png',
+      'not-a-url',
+    ],
+  })
+  check(
+    editedShots.images.length === 1 && editedShots.images[0] === 'https://cdn.test/keep.png',
+    '脏图被洗掉，只留公网地址：' + editedShots.images.join(',')
+  )
+
+  // 传空数组 = 把图全删掉（后端不能被 updateById 的 null 忽略吃掉）
+  const clearedShots = await taskSvc.update(editTask.id, { images: [] })
+  check(clearedShots.images.length === 0, '传空数组把附图清空')
+
+  // 不传 images = 不动
+  await taskSvc.update(editTask.id, { images: ['https://cdn.test/back.png'] })
+  const keptShots = await taskSvc.update(editTask.id, { title: '只改标题不动图' })
+  check(
+    keptShots.images.length === 1 && keptShots.images[0] === 'https://cdn.test/back.png',
+    '不传 images 时附图保持原样'
+  )
 
   // 非布置者看不到编辑入口
   await as('kid', '小明')

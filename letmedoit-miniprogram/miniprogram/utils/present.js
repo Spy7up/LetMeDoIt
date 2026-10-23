@@ -45,6 +45,11 @@ function presentUser(u) {
 
 function presentParticipant(p) {
   const style = PARTICIPANT_STATUS_MAP[p.status] || PARTICIPANT_STATUS_MAP.pending
+  const images = p.images || []
+  const doneTimeText = p.completedAt ? formatRelative(p.completedAt) : ''
+  // 一行最多展示 3 张，超出的用「+N」盖在第 3 张上
+  const shotList = images.slice(0, 3)
+  const moreCount = Math.max(images.length - shotList.length, 0)
   return Object.assign(presentUser(p), {
     statusLabel: style.label,
     statusClass: 't-' + p.status,
@@ -58,7 +63,12 @@ function presentParticipant(p) {
         : p.status === 'skipped'
         ? '已完成，无需参与'
         : '还没接受',
-    doneTimeText: p.completedAt ? formatRelative(p.completedAt) : '',
+    doneTimeText,
+    // 完成凭证：有图才渲染，模板里统一用 shotCount 判断
+    shotList,
+    shotCount: images.length,
+    moreCount,
+    shotHint: images.length ? (doneTimeText ? doneTimeText + ' · ' + images.length + ' 张图' : images.length + ' 张图') : '',
   })
 }
 
@@ -91,8 +101,12 @@ function presentTask(t) {
     participants,
     counterpart,
     headName,
-    headInitial: head ? head.initial : '人',
-    headStyle: head ? head.avatarStyle : 'background:#EFE9E3;color:#8C8279',
+    // 抬头头像交给 user-avatar 组件渲染：有公网图就显示图，没有/加载失败自动回落成色块
+    headUser: head || {
+      initial: '人',
+      avatarUrl: '',
+      avatarStyle: 'background:#EFE9E3;color:#8C8279',
+    },
     statusLabel: style.label,
     statusClass: 't-' + display,
     deadlineText: formatDeadline(t.deadline),
@@ -121,6 +135,8 @@ function presentDetail(d) {
   const total = (d.progress && d.progress.total) || 1
   const done = (d.progress && d.progress.done) || 0
   const percent = Math.round((done / total) * 100)
+  // 布置时给的参考图：横排只放 3 张，多的压成「+N」，点开再看全量
+  const images = d.images || []
 
   return Object.assign({}, d, {
     creator: presentUser(d.creator),
@@ -133,6 +149,12 @@ function presentDetail(d) {
     createdText: formatRelative(d.createdAt),
     modeText: modeText(d.completionMode),
     modeHint: (COMPLETION_MODE_MAP[d.completionMode] || COMPLETION_MODE_MAP.any).hint,
+    // 附图：shots 是给模板渲染的前 3 张，allShots 是给 previewImage 的全量
+    shots: images.slice(0, 3),
+    allShots: images,
+    shotCount: images.length,
+    shotMore: images.length > 3 ? images.length - 3 : 0,
+    shotHint: images.length ? '共 ' + images.length + ' 张 · 点开看大图' : '',
     bylineText:
       (d.isCreator ? '我布置的' : (d.creator && d.creator.nickname) + ' 布置的') +
       (total > 1 ? ' · ' + total + ' 人一起做' : ''),

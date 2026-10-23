@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "选择参与者"
+  "navigationBarTitleText": "选择参与者",
+  "usingComponents": {
+    "user-avatar": "/components/user-avatar/index"
+  }
 }

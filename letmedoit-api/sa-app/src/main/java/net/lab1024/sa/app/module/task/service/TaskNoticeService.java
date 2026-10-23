@@ -2,6 +2,8 @@ package net.lab1024.sa.app.module.task.service;
 
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
+import net.lab1024.sa.app.module.dict.constant.AppDictCode;
+import net.lab1024.sa.app.module.dict.service.AppDictService;
 import net.lab1024.sa.app.module.notice.constant.NoticeTemplateEnum;
 import net.lab1024.sa.app.module.notice.dao.NoticeDao;
 import net.lab1024.sa.app.module.notice.domain.entity.NoticeEntity;
@@ -49,6 +51,9 @@ public class TaskNoticeService {
     @Resource
     private WxSubscribePusher subscribePusher;
 
+    @Resource
+    private AppDictService appDictService;
+
     /**
      * 任务委托通知：发给每个参与者
      *
@@ -61,7 +66,10 @@ public class TaskNoticeService {
         if (CollectionUtils.isEmpty(participantIds)) {
             return;
         }
-        String modeText = CompletionModeEnum.ALL.getValue().equals(task.getCompletionMode()) ? "需全员完成" : "任一人完成";
+        CompletionModeEnum mode = CompletionModeEnum.ALL.getValue().equals(task.getCompletionMode())
+                ? CompletionModeEnum.ALL : CompletionModeEnum.ANY;
+        // 文案走数据字典 TASK_COMPLETION_MODE；通知内容落库后不再变，改字典只影响新通知
+        String modeText = appDictService.label(AppDictCode.TASK_COMPLETION_MODE, mode);
         List<NoticeVO.Field> fields = Arrays.asList(
                 new NoticeVO.Field("任务名称", task.getTitle()),
                 new NoticeVO.Field("委托人", creatorName),

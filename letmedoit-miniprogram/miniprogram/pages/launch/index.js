@@ -48,9 +48,11 @@ Page({
       const user = await getApp().refreshUser()
       if (!user) throw new Error('登录失败，再试一次')
 
-      // 只有首次注册才引导，老用户不打扰；从邀请链接进来的先看任务，别打断
-      if (!silent && me && me.newUser && !this.invite) {
-        wx.redirectTo({ url: '/pages/mine/profile/index?from=launch' })
+      // 首次登录（不管是不是邀请进来的）都过一屏引导：设头像昵称，可跳过。
+      // 老用户不打扰，想改自己去「我的」。
+      if (!silent && me && me.newUser) {
+        const next = this.redirect || 'pages/tasks/index/index'
+        wx.redirectTo({ url: '/pages/onboarding/index?next=' + encodeURIComponent(next) })
         return
       }
       this.go()

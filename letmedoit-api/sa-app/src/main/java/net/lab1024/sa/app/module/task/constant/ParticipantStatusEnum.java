@@ -9,6 +9,8 @@ import net.lab1024.sa.base.common.enumeration.BaseEnum;
  * <p>
  * 与 t_task_participant.status 一一对应。
  * SKIPPED 只出现在「任一人完成」模式下：其他人做完后，剩余的人自动跳过。
+ * <p>
+ * 展示文案以数据字典 TASK_PARTICIPANT_STATUS 为准，desc 仅兜底。
  *
  * @author letmedoit
  */

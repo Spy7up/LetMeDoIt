@@ -34,13 +34,14 @@
           </view>
           <view class="g-bottom">
             <view class="stack" wx:if="{{bannerUsers.length}}">
-              <view
-                class="av av-24"
+              <user-avatar
                 wx:for="{{bannerUsers}}"
                 wx:key="id"
-                style="{{item.avatarStyle}}"
-                >{{item.initial}}</view
-              >
+                user="{{item}}"
+                size="24"
+                ring="{{true}}"
+                overlap="{{index > 0}}"
+              />
             </view>
             <text class="g-sub">{{bannerSub}}</text>
           </view>
@@ -118,7 +119,7 @@
         bindtap="goDetail"
       >
         <view class="task-top">
-          <view class="av av-28" style="{{item.headStyle}}">{{item.headInitial}}</view>
+          <user-avatar user="{{item.headUser}}" size="28" />
           <view class="who">
             <text class="who-name">{{item.headName}}</text>
             <text class="who-sub">{{item.timeAgo}}</text>
@@ -139,14 +140,16 @@
 
         <view class="ppl" wx:if="{{item.isMulti}}">
           <view class="stack">
-            <view
-              class="av av-24 av-flag {{p.status === 'done' ? 'done' : ''}}"
+            <user-avatar
               wx:for="{{item.participants}}"
               wx:for-item="p"
               wx:key="userId"
-              style="{{p.avatarStyle}}"
-              >{{p.initial}}</view
-            >
+              user="{{p}}"
+              size="24"
+              ring="{{true}}"
+              overlap="{{index > 0}}"
+              flag="{{p.status === 'done' ? 'done' : ''}}"
+            />
           </view>
           <text class="ppl-txt">{{item.peopleText}}</text>
           <text class="ppl-count">{{item.doneCount}}<text class="ppl-total">/{{item.totalCount}}</text></text>

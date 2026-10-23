@@ -21,7 +21,7 @@ const contract = require('./contract-server')
 /* ---------------- 环境桩 ---------------- */
 
 const storage = {}
-const calls = { toast: [], nav: [], modal: [], clipboard: [] }
+const calls = { toast: [], nav: [], modal: [], clipboard: [], upload: [] }
 let appInstance = null
 let lastPageConfig = null
 let lastHeaders = {}
@@ -80,6 +80,26 @@ global.wx = {
   },
   login: (opt) => setTimeout(() => opt.success({ code: 'wx_code_' + Date.now() }), 1),
   request: httpRequest,
+  // 上传桩：直接返回一个"已上云"的公网地址，用来验证页面把临时路径换成 URL 的逻辑
+  uploadFile: (opt) => {
+    const name = opt.name || 'file'
+    calls.upload.push({ filePath: opt.filePath, bizType: (opt.formData || {}).bizType })
+    setTimeout(
+      () =>
+        opt.success({
+          statusCode: 200,
+          data: JSON.stringify({
+            code: 0,
+            ok: true,
+            data: {
+              fileUrl: 'https://cdn.test/' + (opt.formData || {}).bizType + '/mock.png',
+              fileKey: 'public/app/' + (opt.formData || {}).bizType + '/mock.png',
+            },
+          }),
+        }),
+      10
+    )
+  },
   requestSubscribeMessage: (opt) => opt.success({}),
   showToast: (o) => calls.toast.push(o.title),
   showLoading: () => {},
@@ -308,7 +328,13 @@ async function run() {
   completeApi.useQuick(evt({ text: '我搞定了' }))
   check(completeApi.data.remark === '我搞定了', '快捷语写入备注')
   completeApi.chooseImage()
-  check(completeApi.data.images.length === 2, '选图 ' + completeApi.data.images.length + ' 张')
+  // 选完先上传再进列表，等上传桩返回
+  await wait(200)
+  check(
+    completeApi.data.images.length === 2 &&
+      completeApi.data.images.every((u) => u.indexOf('https://cdn.test/task-image/') === 0),
+    '选图 ' + completeApi.data.images.length + ' 张（已换成公网地址）'
+  )
 
   // 找一个已接受的任务真的完成一次，验证状态机
   const accepted = listPage.data.list.find((t) => t.myStatus === 'accepted')
@@ -434,6 +460,100 @@ async function run() {
   const fmtUtil = require(path.join(ROOT, 'utils/format'))
   const wholeDayIso = new Date(new Date().setHours(23, 59, 59, 0)).toISOString()
   check(/当天完成/.test(fmtUtil.formatDeadline(wholeDayIso)), '展示文案：' + fmtUtil.formatDeadline(wholeDayIso))
+
+  // 布置任务带附图：选完立刻上传，提交的只有公网 URL
+  const withShots = loadPage('pages/tasks/create/index')
+  withShots.onLoad({})
+  await wait(150)
+  withShots.applyParticipants(pickedUsers)
+  withShots.onTitle(evt({}, { value: '带图的任务' }))
+  const uploadBefore = calls.upload.length
+  withShots.chooseImage()
+  await wait(400)
+  check(withShots.data.shots.length === 2, '选了两张图 ' + withShots.data.shots.length)
+  check(
+    calls.upload.length === uploadBefore + 2,
+    '选完立刻上传 ' + (calls.upload.length - uploadBefore) + ' 次'
+  )
+  check(
+    withShots.data.shots.every((s) => s.state === 'done' && s.url.indexOf('https://') === 0),
+    '每张都换成了公网地址'
+  )
+  check(
+    withShots.data.shots.every((s) => !s.tempPath),
+    '传完就丢掉本机临时路径'
+  )
+  check(withShots.imageUrls().length === 2, '提交用的地址 2 个')
+
+  // 有图还在传时，发布必须被拦住（否则那张图会被静默丢掉）
+  withShots.applyShots(
+    withShots.data.shots.concat([
+      { k: 'inflight', url: '', tempPath: 'wxfile://tmp_c.jpg', state: 'uploading' },
+    ])
+  )
+  const toastBeforeUpload = calls.toast.length
+  await withShots.submit()
+  check(
+    calls.toast.length > toastBeforeUpload && /还有图在传/.test(calls.toast[calls.toast.length - 1]),
+    '上传中发布被拦住'
+  )
+  check(withShots.data.submitting === false, '被拦住时没有进入提交态')
+  withShots.removeImage(evt({ key: 'inflight' }))
+
+  // 删一张
+  withShots.removeImage(evt({ key: withShots.data.shots[0].k }))
+  check(withShots.data.shots.length === 1, '删掉一张后剩 1 张')
+
+  // 满 6 张不再让加
+  withShots.applyShots(
+    [1, 2, 3, 4, 5, 6].map((i) => ({
+      k: 'full' + i,
+      url: 'https://cdn.test/task-image/' + i + '.png',
+      tempPath: '',
+      state: 'done',
+    }))
+  )
+  const toastBeforeFull = calls.toast.length
+  withShots.chooseImage()
+  await wait(100)
+  check(
+    calls.toast.length > toastBeforeFull &&
+      /最多 6 张/.test(calls.toast[calls.toast.length - 1]),
+    '满 6 张后不再让选'
+  )
+
+  // 带图发布 → 服务端回读
+  withShots.applyShots([
+    { k: 'final', url: 'https://cdn.test/task-image/keep.png', tempPath: '', state: 'done' },
+  ])
+  await withShots.submit()
+  await wait(800)
+  const shotList = await taskSvc.list({ role: 'creator', status: 'all' })
+  const shotTask = shotList.list.find((t) => t.title === '带图的任务')
+  check(!!shotTask, '带图任务发布成功')
+  if (shotTask) {
+    const shotDetail = await taskSvc.detail(shotTask.id)
+    check(
+      shotDetail.images.length === 1 && shotDetail.images[0].indexOf('https://') === 0,
+      '附图回读 ' + shotDetail.images.length + ' 张'
+    )
+    const shotShown = require(path.join(ROOT, 'utils/present')).presentDetail(shotDetail)
+    check(
+      shotShown.shotCount === 1 && shotShown.shots.length === 1 && !!shotShown.shotHint,
+      '详情展示：' + shotShown.shotHint
+    )
+  }
+  // 6 张时第 3 张要压出「+N」
+  const manyShots = require(path.join(ROOT, 'utils/present')).presentDetail({
+    title: 'x',
+    participants: [],
+    deadline: new Date(Date.now() + 6 * 3600 * 1000).toISOString(),
+    images: ['https://a/1.png', 'https://a/2.png', 'https://a/3.png', 'https://a/4.png', 'https://a/5.png'],
+  })
+  check(
+    manyShots.shots.length === 3 && manyShots.shotMore === 2 && manyShots.allShots.length === 5,
+    '5 张图 → 3 张缩略图 + ' + manyShots.shotMore + ' 张折叠'
+  )
 
   // 3) 预约中的任务：能筛出来、也能撤回
   const startAt = new Date(Date.now() + 3 * 3600 * 1000)
@@ -646,31 +766,93 @@ async function run() {
   const profile = loadPage('pages/mine/profile/index')
   await profile.onLoad()
   await wait(200)
-  check(profile.data.nickname === '小林', '头像昵称页回填 ' + profile.data.nickname)
+  check(profile.data.nicknameInit === '小林', '头像昵称页回填 ' + profile.data.nicknameInit)
   profile.onChooseAvatar(evt({}, { avatarUrl: 'wxfile://tmp_me.jpg' }))
-  profile.onNickname(evt({}, { value: '小林同学' }))
-  await profile.save()
+  // 选完立刻上传，拿到公网地址后就不该再依赖本机临时路径
+  await wait(200)
+  check(
+    (profile.data.avatarUrl || '').indexOf('https://cdn.test/') === 0,
+    '头像上传后换成公网地址 ' + profile.data.avatarUrl
+  )
+  check(!storage['lmd_avatar'], '上传成功后清掉本机临时路径')
+  // 走真实提交路径：type=nickname 的值只能从 form submit 里取
+  await profile.onSubmit(evt({}, { value: { nickname: '小林同学' } }))
   await wait(400)
   check(appInstance.globalData.user.nickname === '小林同学', '昵称改动生效 ' + appInstance.globalData.user.nickname)
-  // 头像只做本机预览：临时路径不写库，默认头像是「名字末字 + 色块」，永远不为空
-  check(!appInstance.globalData.user.avatarUrl, '临时路径头像不入库')
-  check(storage['lmd_avatar'] === 'wxfile://tmp_me.jpg', '头像只存本机预览')
+  check(
+    (appInstance.globalData.user.avatarUrl || '').indexOf('https://cdn.test/avatar/') === 0,
+    '公网头像已入库'
+  )
   const presentUtil = require(path.join(ROOT, 'utils/present'))
   const shown = presentUtil.presentUser(appInstance.globalData.user)
-  check(!shown.avatarUrl && !!shown.avatarStyle && !!shown.initial, '没有可用头像时也一定有默认头像')
+  check(shown.avatarUrl === appInstance.globalData.user.avatarUrl, '公网头像原样透传给 image')
+  // 没有公网地址时仍然要有默认头像，临时路径不能进 image
+  const fallbackShown = presentUtil.presentUser({ id: '1', nickname: '阿豆', avatarUrl: 'wxfile://tmp_x.jpg' })
+  check(!fallbackShown.avatarUrl && !!fallbackShown.avatarStyle && !!fallbackShown.initial, '临时路径回落默认头像')
+
+  // 完成凭证：详情页把参与者的图片整理成缩略图（最多 3 张 + 剩余数），点开看大图
+  const shots = presentUtil.presentParticipant({
+    userId: '9',
+    nickname: '小王',
+    status: 'done',
+    remark: '阳台衣服收好了',
+    images: ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg'],
+    completedAt: '2026-10-23T13:40:00.000Z',
+  })
+  check(
+    shots.shotList.length === 3 && shots.moreCount === 2 && shots.shotCount === 5,
+    '凭证缩略图 3 张 + 剩余 2 张'
+  )
+  const noShots = presentUtil.presentParticipant({ userId: '10', nickname: '小明', status: 'accepted' })
+  check(noShots.shotCount === 0 && noShots.shotHint === '', '没交凭证的人不占位置')
   check(storage['lmd_user'] && storage['lmd_user'].nickname === '小林同学', '用户资料已缓存到本地')
 
-  // 登录后的补资料引导：可跳过，跳过直接进任务首页
-  const guide = loadPage('pages/mine/profile/index')
-  const navCount = calls.nav.length
-  await guide.onLoad({ from: 'launch' })
+  // 首登引导页：默认带出名字 + 文字头像，选的头像只存本机，可跳过
+  // 先清掉本机预览，还原"第一次登录"的真实状态
+  wx.removeStorageSync('lmd_avatar')
+  const onboarding = loadPage('pages/onboarding/index')
+  await onboarding.onLoad({ next: encodeURIComponent('pages/tasks/index/index') })
+  await wait(150)
+  check(!!onboarding.data.nicknameInit, '引导页默认带出名字 ' + onboarding.data.nicknameInit)
+  check(
+    !!onboarding.data.avatarStyle && !!onboarding.data.initial,
+    '引导页头像带兜底色块 ' + (onboarding.data.avatarUrl || '文字头像')
+  )
+  onboarding.onChooseAvatar(evt({}, { avatarUrl: 'wxfile://tmp_ob.jpg' }))
   await wait(200)
-  check(guide.data.guide === true, '登录引导模式生效')
-  guide.skip()
-  await wait(800)
+  check(
+    (onboarding.data.avatarUrl || '').indexOf('https://cdn.test/avatar/') === 0,
+    '引导页头像上传成公网地址'
+  )
+  check(!storage['lmd_avatar'], '引导页上传成功后清掉本机路径')
+  const navCount = calls.nav.length
+  onboarding.skip()
+  await wait(700)
   check(
     calls.nav.slice(navCount).indexOf('/pages/tasks/index/index') >= 0,
     '跳过引导回到任务首页'
+  )
+
+  // 「就这么定」：昵称落库（走 form 提交）
+  const obSubmit = loadPage('pages/onboarding/index')
+  await obSubmit.onLoad({ next: encodeURIComponent('pages/tasks/index/index') })
+  await wait(150)
+  await obSubmit.onSubmit(evt({}, { value: { nickname: '阿豆' } }))
+  await wait(400)
+  check(appInstance.globalData.user.nickname === '阿豆', '引导页保存昵称 阿豆')
+
+  // 回归：选微信昵称是原生填充，可能只来一次带旧值的 blur、不触发 bindinput。
+  // 以前受控 value 会被旧值顶回去（选了没反应），现在必须靠 form 拿到真值。
+  const obNative = loadPage('pages/onboarding/index')
+  await obNative.onLoad({ next: encodeURIComponent('pages/tasks/index/index') })
+  await wait(150)
+  const staleName = obNative.data.nicknameInit
+  obNative.onNickname(evt({}, { value: staleName }))
+  await obNative.onSubmit(evt({}, { value: { nickname: '微信来的名字' } }))
+  await wait(400)
+  check(
+    appInstance.globalData.user.nickname === '微信来的名字',
+    '原生填充的微信昵称能存上 ' + appInstance.globalData.user.nickname
   )
 
   // 用户拒绝授权：登录没带微信资料且库里也没昵称 -> 「用户XXXX」

@@ -3,7 +3,7 @@
 <mapper namespace="net.lab1024.sa.app.module.task.dao.TaskDao">
 
     <sql id="baseColumns">
-        task_id, title, description, creator_id, completion_mode, status, start_time, start_notify_flag, deadline,
+        task_id, title, description, images, creator_id, completion_mode, status, start_time, start_notify_flag, deadline,
         remind_minutes, remind_time, last_remind_time, edit_count, deleted_flag, create_time, update_time
     </sql>
 

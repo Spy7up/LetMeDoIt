@@ -2,5 +2,8 @@
   "navigationStyle": "custom",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
-  "backgroundColor": "#F7F4F1"
+  "backgroundColor": "#F7F4F1",
+  "usingComponents": {
+    "user-avatar": "/components/user-avatar/index"
+  }
 }

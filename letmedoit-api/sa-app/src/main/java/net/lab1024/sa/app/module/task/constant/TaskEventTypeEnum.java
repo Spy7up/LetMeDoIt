@@ -6,6 +6,8 @@ import net.lab1024.sa.base.common.enumeration.BaseEnum;
 
 /**
  * 任务事件类型（append-only，详情页时间线与后台追溯共用）
+ * <p>
+ * 展示文案以数据字典 TASK_EVENT_TYPE 为准，desc 仅兜底。
  *
  * @author letmedoit
  */

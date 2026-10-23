@@ -4,7 +4,6 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import net.lab1024.sa.app.module.member.domain.entity.WxMemberEntity;
 import net.lab1024.sa.app.module.member.service.WxMemberService;
-import net.lab1024.sa.app.module.task.constant.ParticipantStatusEnum;
 import net.lab1024.sa.app.module.task.constant.TaskStatusEnum;
 import net.lab1024.sa.app.module.task.dao.TaskDao;
 import net.lab1024.sa.app.module.task.dao.TaskParticipantDao;
@@ -12,10 +11,12 @@ import net.lab1024.sa.app.module.task.domain.entity.TaskEntity;
 import net.lab1024.sa.app.module.task.domain.entity.TaskParticipantEntity;
 import net.lab1024.sa.app.module.task.manager.TaskManager;
 import net.lab1024.sa.app.module.task.service.TaskNoticeService;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import net.lab1024.sa.base.module.support.job.core.SmartJob;
+import net.lab1024.sa.base.module.support.job.repository.SmartJobDao;
+import net.lab1024.sa.base.module.support.job.repository.domain.SmartJobEntity;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -23,37 +24,30 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * 任务定时作业
+ * 任务定时作业（SmartJob 实现）
  * <p>
- * 每分钟做两件事：
+ * 每轮做两件事：
  * 1. 预约任务到点 → 转为待接受
  * 2. 到提醒时间的任务 → 给还没完成的人写提醒通知
  * <p>
- * 多实例部署时用 Redisson 锁保证只有一个实例执行；锁租期短于调度间隔，
- * 进程被 kill 也能在下一分钟自动恢复。
+ * 调度交给 sa-base 的 SmartJob：配置在 t_smart_job（job_class = 本类全限定名，
+ * trigger_type = cron，trigger_value = 0 * * * * *），可在后台「系统工具-定时任务」
+ * 启停、改 cron、看执行日志。集群下 SmartJobExecutor 自带 Redisson 执行锁 +
+ * lastExecuteTime 校验，多实例也只有一个跑，所以这里不再自己加锁。
  *
  * @author letmedoit
  */
 @Slf4j
-@Component
-public class TaskScheduleJob {
-
-    /**
-     * 作业分布式锁，key 集中在 AppRedisKeyConst 管理更规范，这里为局部作业单独定义
-     */
-    private static final String LOCK_KEY = "app:task:schedule:job:lock";
+@Service
+public class TaskScheduleJob implements SmartJob {
 
     /**
      * 单轮最多处理多少条，避免一次拉起太多
      */
     private static final int BATCH_SIZE = 100;
-
-    @Resource
-    private RedissonClient redissonClient;
 
     @Resource
     private TaskDao taskDao;
@@ -70,40 +64,64 @@ public class TaskScheduleJob {
     @Resource
     private WxMemberService wxMemberService;
 
-    @Scheduled(cron = "0 * * * * ?")
-    public void run() {
-        RLock lock = redissonClient.getLock(LOCK_KEY);
-        boolean locked = false;
+    @Resource
+    private SmartJobDao smartJobDao;
+
+    /**
+     * 启动自检：没在 t_smart_job 注册就等于不会执行，必须让它响一声
+     * <p>
+     * SmartJob 是「配置驱动」的，代码里没有 @Scheduled 兜底。漏执行初始化 SQL 时
+     * 任务会静默不跑（提醒功能整体失效），所以这里在启动完成后查一次配置表并打错误日志。
+     * 只读，不写库，不改变运维在后台做的任何配置。
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void checkRegistered() {
         try {
-            locked = lock.tryLock(0, 50, TimeUnit.SECONDS);
-            if (!locked) {
-                return;
+            List<SmartJobEntity> jobs = smartJobDao.selectList(null);
+            boolean registered = jobs != null && jobs.stream().anyMatch(job ->
+                    !Boolean.TRUE.equals(job.getDeletedFlag())
+                            && TaskScheduleJob.class.getName().equals(job.getJobClass()));
+            if (!registered) {
+                log.error("【定时任务】{} 未在 t_smart_job 注册，预约生效与到期提醒不会执行！" +
+                                "请执行 docs/sql/letmedoit_dict.sql（job_class 需与类全限定名一致）",
+                        TaskScheduleJob.class.getName());
             }
-            activateScheduledTasks();
-            sendDueReminders();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } catch (Exception e) {
-            log.error("任务定时作业异常", e);
-        } finally {
-            if (locked && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+            log.warn("【定时任务】启动自检失败，请人工确认 t_smart_job 是否已注册", e);
         }
     }
 
     /**
-     * 预约任务到点生效
+     * SmartJob 入口
+     *
+     * @param param 任务参数，本作业不需要
+     * @return 执行结果，会写进 t_smart_job_log
      */
-    private void activateScheduledTasks() {
+    @Override
+    public String run(String param) {
+        int activated = activateScheduledTasks();
+        int reminded = sendDueReminders();
+        String result = "预约生效 " + activated + " 条，到期提醒 " + reminded + " 条";
+        log.info("TaskScheduleJob 执行完成：{}", result);
+        return result;
+    }
+
+    /**
+     * 预约任务到点生效
+     *
+     * @return 生效条数
+     */
+    private int activateScheduledTasks() {
         List<TaskEntity> tasks = taskDao.queryScheduledToActivate(LocalDateTime.now(),
                 TaskStatusEnum.SCHEDULED.getValue(), BATCH_SIZE);
         if (CollectionUtils.isEmpty(tasks)) {
-            return;
+            return 0;
         }
+        int activated = 0;
         for (TaskEntity task : tasks) {
             try {
                 taskManager.activate(task);
+                activated++;
                 // 到点通知由委托人开关控制，默认开
                 if (!Boolean.FALSE.equals(task.getStartNotifyFlag())) {
                     notifyStarted(task);
@@ -112,7 +130,7 @@ public class TaskScheduleJob {
                 log.error("预约任务生效失败, taskId={}", task.getTaskId(), e);
             }
         }
-        log.info("预约任务生效 {} 条", tasks.size());
+        return activated;
     }
 
     /**
@@ -125,7 +143,6 @@ public class TaskScheduleJob {
                 .filter(id -> !Objects.equals(id, task.getCreatorId()))
                 .distinct()
                 .collect(Collectors.toList());
-        log.info("start-notify taskId={} flag={} members={}", task.getTaskId(), task.getStartNotifyFlag(), memberIds);
         if (CollectionUtils.isEmpty(memberIds)) {
             return;
         }
@@ -137,12 +154,14 @@ public class TaskScheduleJob {
 
     /**
      * 到期提醒：只发给还没完成的人，发完清空 remind_time 避免重复
+     *
+     * @return 下发条数
      */
-    private void sendDueReminders() {
+    private int sendDueReminders() {
         LocalDateTime now = LocalDateTime.now();
         List<TaskEntity> tasks = taskDao.queryRemindList(now, Boolean.FALSE, BATCH_SIZE);
         if (CollectionUtils.isEmpty(tasks)) {
-            return;
+            return 0;
         }
 
         List<Long> taskIds = tasks.stream().map(TaskEntity::getTaskId).collect(Collectors.toList());
@@ -170,14 +189,12 @@ public class TaskScheduleJob {
                     taskNoticeService.notifyRemind(task, creatorName, waiting);
                     sent++;
                 }
-                // 无论有没有收件人，都清空提醒时间，避免每分钟重复扫描
+                // 无论有没有收件人，都清空提醒时间，避免下轮重复扫描
                 taskDao.updateRemind(task.getTaskId(), null, null, now);
             } catch (Exception e) {
                 log.error("任务提醒下发失败, taskId={}", task.getTaskId(), e);
             }
         }
-        if (sent > 0) {
-            log.info("任务到期提醒下发 {} 条", sent);
-        }
+        return sent;
     }
 }

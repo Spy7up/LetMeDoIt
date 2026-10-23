@@ -1,6 +1,8 @@
 package net.lab1024.sa.app.module.task.service;
 
 import jakarta.annotation.Resource;
+import net.lab1024.sa.app.module.dict.constant.AppDictCode;
+import net.lab1024.sa.app.module.dict.service.AppDictService;
 import net.lab1024.sa.app.module.friend.dao.FriendDao;
 import net.lab1024.sa.app.module.member.domain.entity.WxMemberEntity;
 import net.lab1024.sa.app.module.member.service.WxMemberService;
@@ -25,6 +27,7 @@ import net.lab1024.sa.app.module.task.domain.vo.TaskStatsVO;
 import net.lab1024.sa.app.module.task.domain.vo.TaskSummaryVO;
 import net.lab1024.sa.app.module.task.domain.vo.TaskUserVO;
 import net.lab1024.sa.app.module.task.manager.TaskManager;
+import net.lab1024.sa.app.module.task.util.TaskImages;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import net.lab1024.sa.base.common.domain.PageResult;
 import net.lab1024.sa.base.common.util.SmartPageUtil;
@@ -77,6 +80,9 @@ public class TaskQueryService {
     @Resource
     private FriendDao friendDao;
 
+    @Resource
+    private AppDictService appDictService;
+
     /**
      * 任务列表
      */
@@ -96,6 +102,7 @@ public class TaskQueryService {
         detail.setTaskId(task.getTaskId());
         detail.setTitle(task.getTitle());
         detail.setDescription(task.getDescription());
+        detail.setImages(TaskImages.parse(task.getImages()));
         detail.setCompletionMode(task.getCompletionMode());
         detail.setCompletionModeDesc(descOfCompletionMode(task.getCompletionMode()));
         detail.setStatus(task.getStatus());
@@ -322,12 +329,12 @@ public class TaskQueryService {
         }
     }
 
-    /* ---------------- 枚举文案 ---------------- */
+    /* ---------------- 枚举文案（统一走数据字典，枚举 desc 仅兜底） ---------------- */
 
     private String descOfStatus(Integer status) {
         for (TaskStatusEnum item : TaskStatusEnum.values()) {
             if (item.getValue().equals(status)) {
-                return item.getDesc();
+                return appDictService.label(AppDictCode.TASK_STATUS, item);
             }
         }
         return "";
@@ -336,7 +343,7 @@ public class TaskQueryService {
     private String descOfCompletionMode(Integer mode) {
         for (CompletionModeEnum item : CompletionModeEnum.values()) {
             if (item.getValue().equals(mode)) {
-                return item.getDesc();
+                return appDictService.label(AppDictCode.TASK_COMPLETION_MODE, item);
             }
         }
         return "";
@@ -345,7 +352,7 @@ public class TaskQueryService {
     private String descOfParticipantStatus(Integer status) {
         for (ParticipantStatusEnum item : ParticipantStatusEnum.values()) {
             if (item.getValue().equals(status)) {
-                return item.getDesc();
+                return appDictService.label(AppDictCode.TASK_PARTICIPANT_STATUS, item);
             }
         }
         return "";
@@ -354,7 +361,7 @@ public class TaskQueryService {
     private String descOfEventType(Integer type) {
         for (TaskEventTypeEnum item : TaskEventTypeEnum.values()) {
             if (item.getValue().equals(type)) {
-                return item.getDesc();
+                return appDictService.label(AppDictCode.TASK_EVENT_TYPE, item);
             }
         }
         return "";

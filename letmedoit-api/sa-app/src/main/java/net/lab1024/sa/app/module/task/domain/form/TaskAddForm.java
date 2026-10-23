@@ -32,6 +32,10 @@ public class TaskAddForm {
     @Length(max = 500, message = "交代内容最多 500 个字")
     private String description;
 
+    @Schema(description = "附图，公网 http(s) 地址，最多 6 张，选填")
+    @Size(max = 6, message = "最多 6 张图")
+    private List<String> images;
+
     @Schema(description = "参与者会员ID，1~10 个", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "至少选一个人")
     @Size(min = 1, max = 10, message = "一条任务最多 10 个人")

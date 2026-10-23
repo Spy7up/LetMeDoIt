@@ -168,31 +168,23 @@ Page({
 
   /* ---------------- 查看某人的备注 ---------------- */
 
-  showParticipant(e) {
-    const idx = e.currentTarget.dataset.index
-    const p = this.data.task.participants[idx]
-    if (!p) return
-    if (!p.remark && !p.rejectReason && !(p.images || []).length) {
-      wx.showToast({ title: p.nickname + ' 还没留下说明', icon: 'none' })
-      return
-    }
-    const parts = []
-    if (p.remark) parts.push('备注：' + p.remark)
-    if (p.rejectReason) parts.push('理由：' + p.rejectReason)
-    if ((p.images || []).length) parts.push('凭证：' + p.images.length + ' 张图')
-    wx.showModal({
-      title: p.nickname + ' 的进展',
-      content: parts.join('\n'),
-      showCancel: false,
-      confirmText: '知道了',
-    })
-  },
-
+  /**
+   * 看大图
+   * dataset: index = 第几个参与者，pi = 第几张图
+   */
   previewImage(e) {
     const { index, pi } = e.currentTarget.dataset
     const p = this.data.task.participants[index]
     if (!p || !(p.images || []).length) return
     wx.previewImage({ current: p.images[pi], urls: p.images })
+  },
+
+  /** 布置时给的参考图：点开看大图，从点的那张开始 */
+  previewTaskImage(e) {
+    const list = (this.data.task && this.data.task.allShots) || []
+    if (!list.length) return
+    const idx = Number(e.currentTarget.dataset.index) || 0
+    wx.previewImage({ current: list[idx] || list[0], urls: list })
   },
 
   async onPullDownRefresh() {

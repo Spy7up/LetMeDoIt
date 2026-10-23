@@ -5,9 +5,14 @@
       <view class="flabel">交给谁 <text class="req">*</text></view>
       <view class="picker-box" bindtap="pickParticipants">
         <view class="stack">
-          <view class="av av-32" wx:for="{{participants}}" wx:key="id" style="{{item.avatarStyle}}">
-            {{item.initial}}
-          </view>
+          <user-avatar
+            wx:for="{{participants}}"
+            wx:key="id"
+            user="{{item}}"
+            size="32"
+            ring="{{true}}"
+            overlap="{{index > 0}}"
+          />
           <view class="add-person" wx:if="{{!editing}}">
             <image class="ic-sm" src="/images/icons/plus-muted.png" />
           </view>
@@ -35,9 +40,12 @@
       <text class="counter">{{title.length}}/30</text>
     </view>
 
-    <!-- 描述 -->
+    <!-- 描述 + 附图：图是「交代」的一部分，所以并在一栏，不新增字段 -->
     <view class="field">
-      <view class="flabel">有什么要交代的</view>
+      <view class="flabel">
+        <text>有什么要交代的</text>
+        <text class="flabel-opt">图片选填 · 最多 {{maxImages}} 张</text>
+      </view>
       <textarea
         class="textarea"
         placeholder="比如：阳台的衣服，白的别和深色混"
@@ -46,6 +54,45 @@
         value="{{description}}"
         bindinput="onDesc"
       />
+      <view class="uploader">
+        <view class="thumb" wx:for="{{shots}}" wx:key="k">
+          <image
+            wx:if="{{item.url}}"
+            class="thumb-img"
+            src="{{item.url}}"
+            mode="aspectFill"
+            data-key="{{item.k}}"
+            bindtap="previewShot"
+          />
+          <image wx:else class="thumb-img" src="{{item.tempPath}}" mode="aspectFill" />
+          <view class="up-mask" wx:if="{{item.state === 'uploading'}}">
+            <view class="spinner"></view>
+            <text class="up-txt">上传中</text>
+          </view>
+          <view
+            class="retry"
+            wx:if="{{item.state === 'failed'}}"
+            data-key="{{item.k}}"
+            bindtap="retryImage"
+          >
+            <text class="retry-txt">失败</text>
+            <text class="retry-txt sub">点重试</text>
+          </view>
+          <view
+            class="thumb-del"
+            wx:if="{{item.state !== 'uploading'}}"
+            data-key="{{item.k}}"
+            catchtap="removeImage"
+          >×</view>
+        </view>
+        <view class="thumb add" wx:if="{{shots.length < maxImages}}" bindtap="chooseImage">
+          <image class="ic-md" src="/images/icons/camera-muted.png" />
+          <text class="thumb-add-txt">加张图</text>
+        </view>
+      </view>
+      <text class="up-meta" wx:if="{{uploadingCount}}">
+        还有 {{uploadingCount}} 张在传 · 传完才能发布
+      </text>
       <text class="counter">{{description.length}}/200</text>
     </view>
 
@@ -165,10 +212,10 @@
 
   <view class="actionbar">
     <view
-      class="btn btn-primary btn-lg {{canSubmit && !submitting ? '' : 'disabled'}}"
+      class="btn btn-primary btn-lg {{canSubmit && !submitting && !uploadingCount ? '' : 'disabled'}}"
       bindtap="submit"
     >
-      {{editing ? (submitting ? '保存中…' : '保存修改') : (submitting ? '发布中…' : participants.length > 1 ? '发布并提醒 ' + participants.length + ' 人' : '发布并提醒 TA')}}
+      {{uploadingCount ? '图片上传中…' : (editing ? (submitting ? '保存中…' : '保存修改') : (submitting ? '发布中…' : participants.length > 1 ? '发布并提醒 ' + participants.length + ' 人' : '发布并提醒 TA'))}}
     </view>
     <text class="hint" wx:if="{{editing}}">改完会通知已经在做的人</text>
     <text class="hint" wx:else>发布时会请求一次消息提醒授权，拒绝也不影响使用</text>

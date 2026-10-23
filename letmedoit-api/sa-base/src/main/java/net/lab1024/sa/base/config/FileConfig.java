@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -60,8 +61,36 @@ public class FileConfig implements WebMvcConfigurer {
     @Value("${file.storage.cloud.public-url-prefix}")
     private String cloudPublicUrlPrefix;
 
+    /**
+     * 是否使用 path-style（bucket 在 path 上，如 https://host/bucket/key）
+     * <p>
+     * 阿里云 OSS / 腾讯 COS 用 virtual-hosted-style（默认 false）；
+     * 七牛 Kodo、MinIO 必须开 true，否则会 404 / 签名不匹配。
+     */
+    @Value("${file.storage.cloud.path-style-access:false}")
+    private boolean cloudPathStyleAccess;
+
     @Value("${file.storage.local.upload-path}")
     private String localUploadPath;
+
+    /**
+     * 云模式必须配齐凭证：否则 S3Client 会抛 "Access key ID cannot be blank"，
+     * 报错信息看不出缺什么。这里提前给一句能照着做的提示。
+     * 本地没配对象存储时，用 FILE_STORAGE_MODE=local 显式降级即可。
+     */
+    @jakarta.annotation.PostConstruct
+    public void checkCloudConfig() {
+        if (!MODE_CLOUD.equals(mode)) {
+            return;
+        }
+        if (!StringUtils.hasText(cloudAccessKey)
+                || !StringUtils.hasText(cloudSecretKey)
+                || !StringUtils.hasText(cloudBucketName)) {
+            throw new IllegalStateException(
+                    "对象存储未配置：请设置环境变量 QINIU_AK / QINIU_SK / QINIU_BUCKET / QINIU_DOMAIN；" +
+                            "本地调试可用 --file.storage.mode=local 降级");
+        }
+    }
 
 
     /**
@@ -77,7 +106,7 @@ public class FileConfig implements WebMvcConfigurer {
                         StaticCredentialsProvider.create(
                                 AwsBasicCredentials.create(cloudAccessKey, cloudSecretKey)))
                 .serviceConfiguration(S3Configuration.builder()
-                        .pathStyleAccessEnabled(false)
+                        .pathStyleAccessEnabled(cloudPathStyleAccess)
                         .chunkedEncodingEnabled(false)
                         .build())
                 .build();
@@ -97,7 +126,7 @@ public class FileConfig implements WebMvcConfigurer {
                         StaticCredentialsProvider.create(
                                 AwsBasicCredentials.create(cloudAccessKey, cloudSecretKey)))
                 .serviceConfiguration(S3Configuration.builder()
-                        .pathStyleAccessEnabled(false)
+                        .pathStyleAccessEnabled(cloudPathStyleAccess)
                         .chunkedEncodingEnabled(false)
                         .build())
                 .build();

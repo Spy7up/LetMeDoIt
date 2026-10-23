@@ -111,7 +111,9 @@ public class FileStorageCloudServiceImpl implements IFileStorageService {
                 .metadata(userMetadata)
                 .contentLength(file.getSize())
                 .contentType(this.getContentType(fileType))
-                .contentEncoding(StandardCharsets.UTF_8.name())
+                // 只有文本类才声明 UTF-8 编码；图片/视频等二进制文件带上 Content-Encoding: UTF-8
+                // 会被部分客户端当作"需要按 UTF-8 解码"而解码失败（COS 会原样返回该头）
+                .contentEncoding(isTextFile(fileType) ? StandardCharsets.UTF_8.name() : null)
                 .contentDisposition("attachment;filename=" + urlEncoderFilename)
                 .acl(acl)
                 .build();
@@ -214,6 +216,21 @@ public class FileStorageCloudServiceImpl implements IFileStorageService {
         fileDownloadVO.setData(buffer);
         fileDownloadVO.setMetadata(metadataDTO);
         return ResponseDTO.ok(fileDownloadVO);
+    }
+
+    /**
+     * 是否是文本类文件（决定要不要声明 UTF-8 编码）
+     *
+     * @param fileExt 文件后缀
+     */
+    private boolean isTextFile(String fileExt) {
+        if (fileExt == null) {
+            return false;
+        }
+        String ext = fileExt.toLowerCase();
+        return "txt".equals(ext) || "html".equals(ext) || "htm".equals(ext)
+                || "json".equals(ext) || "xml".equals(ext) || "csv".equals(ext)
+                || "md".equals(ext) || "svg".equals(ext);
     }
 
     /**

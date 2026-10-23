@@ -23,6 +23,7 @@ import net.lab1024.sa.app.module.task.domain.vo.TaskListVO;
 import net.lab1024.sa.app.module.task.domain.vo.TaskStatsVO;
 import net.lab1024.sa.app.module.task.domain.vo.TaskSummaryVO;
 import net.lab1024.sa.app.module.task.manager.TaskManager;
+import net.lab1024.sa.app.module.task.util.TaskImages;
 import net.lab1024.sa.base.common.code.UserErrorCode;
 import net.lab1024.sa.base.common.domain.PageResult;
 import net.lab1024.sa.base.common.domain.ResponseDTO;
@@ -132,6 +133,8 @@ public class TaskService {
         TaskEntity task = new TaskEntity();
         task.setTitle(addForm.getTitle().trim());
         task.setDescription(addForm.getDescription());
+        // 附图：服务端再洗一遍（只留公网 http(s)、最多 6 张），不信任客户端
+        task.setImages(TaskImages.toJson(addForm.getImages()));
         task.setCreatorId(memberId);
         task.setCompletionMode(addForm.getCompletionMode());
         task.setStartTime(addForm.getStartTime());
@@ -177,6 +180,10 @@ public class TaskService {
         update.setTaskId(task.getTaskId());
         update.setTitle(StringUtils.hasText(form.getTitle()) ? form.getTitle().trim() : null);
         update.setDescription(form.getDescription());
+        // 不传 images = 不改；传空数组 = 把图全删掉（toJson 会落成 "[]"，不会被 updateById 忽略）
+        if (form.getImages() != null) {
+            update.setImages(TaskImages.toJson(form.getImages()));
+        }
         update.setCompletionMode(form.getCompletionMode());
         update.setDeadline(form.getDeadline());
         update.setRemindMinutes(form.getRemindMinutes());
@@ -510,6 +517,7 @@ public class TaskService {
         merged.setTaskId(task.getTaskId());
         merged.setTitle(update.getTitle() != null ? update.getTitle() : task.getTitle());
         merged.setDescription(update.getDescription() != null ? update.getDescription() : task.getDescription());
+        merged.setImages(update.getImages() != null ? update.getImages() : task.getImages());
         merged.setCompletionMode(update.getCompletionMode() != null ? update.getCompletionMode() : task.getCompletionMode());
         merged.setDeadline(update.getDeadline() != null ? update.getDeadline() : task.getDeadline());
         merged.setRemindMinutes(update.getRemindMinutes() != null ? update.getRemindMinutes() : task.getRemindMinutes());

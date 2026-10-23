@@ -127,3 +127,113 @@
   font-size: 21rpx;
   color: var(--ink3);
 }
+
+/* ---------------- 完成凭证（参与者行内） ---------------- */
+
+/* 有图的行改成顶部对齐，否则状态标签会跟着图片垂直居中 */
+.p-row-rich {
+  align-items: flex-start;
+}
+
+.p-row-rich .tag {
+  margin-top: 4rpx;
+}
+
+/* 有备注/理由时允许换行，不要截断成省略号 */
+.p-row-rich .p-sub {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.5;
+}
+
+.p-shots {
+  display: flex;
+  gap: 8rpx;
+  margin-top: 12rpx;
+}
+
+.shot {
+  position: relative;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: var(--line2);
+  flex: 0 0 auto;
+}
+
+.shot-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.shot-more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 27, 24, 0.5);
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.shot-hint {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: var(--ink3);
+}
+
+/* ---------------- 布置时给的参考图 ----------------
+   3 张横排铺满一行：block 内宽 634rpx = 200*3 + 12*2 gap，
+   第 4 张起压成「+N」遮罩，点开看全量。 */
+
+.d-shots {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.d-shot {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: var(--line2);
+  flex: 0 0 auto;
+}
+
+.d-shot-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.d-more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 27, 24, 0.5);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.d-hint {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 20rpx;
+  color: var(--ink3);
+}

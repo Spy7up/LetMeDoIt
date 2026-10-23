@@ -1,33 +1,37 @@
 const auth = require('../../../services/auth')
+const fileApi = require('../../../services/file')
 const avatar = require('../../../utils/avatar')
 const { presentUser } = require('../../../utils/present')
 
 Page({
   data: {
-    nickname: '',
+    // 只作为 input 的初始 value，打字过程中绝不回写（回写会打断微信昵称的原生填充）
+    nicknameInit: '',
+    count: 0,
     avatarUrl: '',
     initial: '我',
     avatarStyle: '',
     saving: false,
-    // 从登录引导进来（pages/mine/profile/index?from=launch）
-    guide: false,
+    uploading: false,
   },
 
-  async onLoad(options) {
-    this.guide = !!(options && options.from === 'launch')
+  async onLoad() {
     // 服务端已有的公网头像：保存时原样回传，避免把合法头像洗掉
     this.remoteAvatar = ''
+    // 输入框的实时值放实例上，不参与渲染
+    this.nickname = ''
     try {
       const user = await getApp().ensureLogin()
       const u = presentUser(user)
       this.remoteAvatar = u.avatarUrl || ''
+      this.nickname = user.nickname || ''
       this.setData({
-        nickname: user.nickname || '',
+        nicknameInit: this.nickname,
+        count: this.nickname.length,
         // 本机预览优先，其次服务端头像，都没有就走色块（initial + avatarStyle）
         avatarUrl: avatar.getLocal() || this.remoteAvatar,
         initial: u.initial,
         avatarStyle: u.avatarStyle,
-        guide: this.guide,
       })
     } catch (e) {
       getApp().redirectToLogin()
@@ -36,27 +40,70 @@ Page({
 
   /**
    * 微信头像选择器
-   * 拿到的是本机临时路径（wxfile:// / http://tmp/），只做预览、不上传、不写库
+   * 拿到的是本机临时路径，先预览、再上传换公网 URL；传不上去就退回默认头像
    */
-  onChooseAvatar(e) {
-    const url = (e.detail && e.detail.avatarUrl) || ''
-    if (!url) return
-    this.setData({ avatarUrl: url })
-    avatar.setLocal(url)
+  async onChooseAvatar(e) {
+    const path = (e.detail && e.detail.avatarUrl) || ''
+    if (!path) return
+    this.setData({ avatarUrl: path, uploading: true })
+    avatar.setLocal(path)
+    try {
+      const file = await fileApi.uploadImage(path, 'avatar')
+      this.remoteAvatar = file.url
+      this.setData({ avatarUrl: file.url })
+      avatar.clearLocal()
+    } catch (err) {
+      this.remoteAvatar = ''
+      avatar.clearLocal()
+      this.setData({ avatarUrl: '' })
+      wx.showToast({ title: err.message || '头像没传上，先用默认的', icon: 'none' })
+    } finally {
+      this.setData({ uploading: false })
+    }
   },
 
-  /** 临时文件被回收：清掉缓存，模板自动回落成名字首字色块 */
+  /** 临时文件被回收：清掉缓存，模板自动回落成名字末字色块 */
   onAvatarError() {
     avatar.clearLocal()
     this.setData({ avatarUrl: '' })
   },
 
+  /**
+   * 昵称变化
+   *
+   * 坑：type="nickname" 从键盘上方选「微信昵称」是原生填充，过程中可能先来一次
+   * blur（带旧值）。以前这里 setData({nickname}) 会把刚填进去的昵称覆盖回去，
+   * 表现就是"选了微信名字但输入框没变化"。现在只更新实例变量和字数。
+   */
   onNickname(e) {
-    this.setData({ nickname: e.detail.value })
+    const value = (e.detail && e.detail.value) || ''
+    this.nickname = value
+    if (value.length !== this.data.count) {
+      this.setData({ count: value.length })
+    }
   },
 
-  async save() {
-    const nickname = (this.data.nickname || '').trim()
+  /** 昵称安全审核结果 */
+  onNicknameReview(e) {
+    const detail = (e && e.detail) || {}
+    if (detail.pass === false) {
+      wx.showToast({ title: '这个昵称没过审核，换一个吧', icon: 'none' })
+    }
+  },
+
+  /**
+   * 保存
+   *
+   * 昵称从 form 的 submit 里取：微信昵称是原生填充，可能不触发 bindinput，
+   * 只有表单取值一定能拿到输入框当前内容。
+   */
+  async onSubmit(e) {
+    if (this.data.uploading) {
+      wx.showToast({ title: '头像还在上传，稍等一下', icon: 'none' })
+      return
+    }
+    const fromForm = (e && e.detail && e.detail.value && e.detail.value.nickname) || ''
+    const nickname = (fromForm || this.nickname || '').trim()
     if (!nickname) {
       wx.showToast({ title: '起个名字吧', icon: 'none' })
       return
@@ -69,26 +116,10 @@ Page({
       const user = await auth.updateProfile({ nickname, avatarUrl: this.remoteAvatar })
       getApp().setUser(user)
       wx.showToast({ title: '改好了', icon: 'none' })
-      this.leave()
-    } catch (e) {
-      wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 600)
+    } catch (e2) {
+      wx.showToast({ title: e2.message || '保存失败', icon: 'none' })
       this.setData({ saving: false })
     }
-  },
-
-  /** 引导模式允许跳过：名字保留「用户XXXX」，头像用默认色块 */
-  skip() {
-    this.leave()
-  },
-
-  leave() {
-    setTimeout(() => {
-      if (this.guide) {
-        // 引导页是 redirectTo 进来的（栈底），不能用 navigateBack
-        wx.reLaunch({ url: '/pages/tasks/index/index' })
-        return
-      }
-      wx.navigateBack()
-    }, 600)
   },
 })

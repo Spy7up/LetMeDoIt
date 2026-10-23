@@ -24,6 +24,9 @@ public class TaskDetailVO {
     @Schema(description = "交代内容")
     private String description;
 
+    @Schema(description = "附图，公网 URL，最多 6 张")
+    private List<String> images;
+
     @Schema(description = "委托人")
     private TaskUserVO creator;
 

@@ -40,7 +40,7 @@
       <view class="sec-label"><text>新的请求</text><text class="sec-num">· {{requests.length}}</text></view>
       <view class="req-card" wx:for="{{requests}}" wx:key="requestId">
         <view class="req-top">
-          <view class="av av-32" style="{{item.avatarStyle}}">{{item.initial}}</view>
+          <user-avatar user="{{item}}" size="32" />
           <view class="who">
             <text class="who-name">{{item.nickname}}</text>
             <text class="who-sub">{{item.message}}</text>
@@ -67,7 +67,7 @@
         data-count="{{item.activeTaskCount}}"
         bindtap="goDetail"
       >
-        <view class="av av-32" style="{{item.avatarStyle}}">{{item.initial}}</view>
+        <user-avatar user="{{item}}" size="32" />
         <view class="who">
           <text class="who-name">{{item.remark || item.nickname}}</text>
           <text class="who-sub">{{item.lastText}}</text>

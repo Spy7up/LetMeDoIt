@@ -3,6 +3,7 @@ package net.lab1024.sa.app.module.task.domain.form;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import net.lab1024.sa.app.module.task.constant.CompletionModeEnum;
 import net.lab1024.sa.base.common.swagger.SchemaEnum;
@@ -10,6 +11,7 @@ import net.lab1024.sa.base.common.validator.enumeration.CheckEnum;
 import org.hibernate.validator.constraints.Length;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 编辑任务（仅任务开始前允许）
@@ -31,6 +33,10 @@ public class TaskUpdateForm {
     @Schema(description = "交代内容")
     @Length(max = 500, message = "交代内容最多 500 个字")
     private String description;
+
+    @Schema(description = "附图，公网 http(s) 地址，最多 6 张；传空数组表示把图全删掉，不传表示不改")
+    @Size(max = 6, message = "最多 6 张图")
+    private List<String> images;
 
     @Schema(description = "完成条件 1任一人 2全员")
     @SchemaEnum(desc = "完成条件", value = CompletionModeEnum.class, required = false)

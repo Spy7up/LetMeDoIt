@@ -1,0 +1,171 @@
+.ob {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-left: 48rpx;
+  padding-right: 48rpx;
+  background: linear-gradient(180deg, #fff3ee 0%, #f7f4f1 42%, #f7f4f1 100%);
+}
+
+.ob-head {
+  padding: 64rpx 0 44rpx;
+}
+
+/* 表单容器接住剩余高度，让底部按钮继续贴底 */
+.ob-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ob-step {
+  display: inline-block;
+  padding: 6rpx 18rpx;
+  border-radius: 100rpx;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.ob-title {
+  margin-top: 26rpx;
+  font-size: 56rpx;
+  font-weight: 700;
+  letter-spacing: -1rpx;
+  color: var(--ink1);
+}
+
+.ob-sub {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: var(--ink2);
+}
+
+.ob-card {
+  padding: 48rpx 36rpx 36rpx;
+  border-radius: 36rpx;
+  background: var(--card);
+  box-shadow: 0 8rpx 32rpx rgba(60, 40, 20, 0.06);
+}
+
+.ob-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ob-avatar-btn {
+  position: relative;
+  width: 168rpx;
+  height: 168rpx;
+  padding: 0;
+  border-radius: 56rpx;
+  background: transparent;
+  line-height: 1;
+  overflow: visible;
+}
+
+.ob-avatar-btn::after {
+  border: none;
+}
+
+.ob-avatar-img,
+.ob-avatar-default {
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 56rpx;
+  font-size: 64rpx;
+}
+
+.ob-avatar-default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.ob-avatar-badge {
+  position: absolute;
+  right: -4rpx;
+  bottom: -4rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  border: 4rpx solid #fff;
+  background: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-badge-ic {
+  width: 26rpx;
+  height: 26rpx;
+}
+
+.ob-avatar-tip {
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: var(--ink3);
+}
+
+.ob-field {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 52rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid var(--line);
+}
+
+.ob-flabel {
+  flex: 0 0 auto;
+  font-size: 26rpx;
+  color: var(--ink2);
+}
+
+.ob-input {
+  flex: 1;
+  font-size: 32rpx;
+  color: var(--ink1);
+}
+
+.ob-ph {
+  color: var(--ink3);
+}
+
+.ob-counter {
+  flex: 0 0 auto;
+  font-size: 20rpx;
+  color: var(--ink3);
+}
+
+.ob-note {
+  margin-top: 16rpx;
+  font-size: 20rpx;
+  line-height: 1.6;
+  color: var(--ink3);
+}
+
+.ob-foot {
+  margin-top: auto;
+  padding: 48rpx 0 calc(40rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+.ob-skip {
+  margin-top: 10rpx;
+  padding: 26rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--ink3);
+}
+
+/* <button> 会被 app.wxss 里的 button.btn 收成 width:auto，这里显式撑满 */
+.ob-foot button.btn {
+  width: 100%;
+}

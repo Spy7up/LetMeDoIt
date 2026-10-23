@@ -41,6 +41,27 @@ function parseTime(value) {
 }
 
 const MIN = 60 * 1000
+
+/** 附图上限，和 sa-app 的 TaskImages.MAX_COUNT 对齐 */
+const MAX_TASK_IMAGES = 6
+
+/** 附图清洗：只留公网 http(s)、去重、最多 6 张 */
+function normalizeImages(list) {
+  if (!Array.isArray(list)) return []
+  const kept = []
+  list.forEach((raw) => {
+    const url = String(raw == null ? '' : raw).trim()
+    if (!url || url.length > 500) return
+    if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) return
+    // 微信临时路径也是 http(s) 形态（http://tmp/xxx.jpeg），单独排掉
+    if (url.indexOf('wxfile://') === 0 || url.indexOf('http://tmp') === 0) return
+    if (url.indexOf('/tmp/') >= 0) return
+    if (kept.indexOf(url) >= 0) return
+    if (kept.length >= MAX_TASK_IMAGES) return
+    kept.push(url)
+  })
+  return kept
+}
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
@@ -409,6 +430,7 @@ function detailVO(task, me) {
     taskId: task.taskId,
     title: task.title,
     description: task.description || '',
+    images: task.images || [],
     creator: userVO(task.creatorId),
     participants: ps.map(participantVO),
     completionMode: task.completionMode,
@@ -651,6 +673,8 @@ route('POST', /^\/api\/task\/add$/, ({ me, body }) => {
     taskId: state.nextId(),
     title,
     description: String(body.description || '').slice(0, 200),
+    // 附图只留公网 http(s)，最多 6 张（和服务端 TaskImages 同一套规则）
+    images: normalizeImages(body.images),
     creatorId: Number(me),
     participants: ids.map((id) => slot(id, P.PENDING)),
     completionMode: mode,
@@ -692,6 +716,8 @@ route('POST', /^\/api\/task\/update$/, ({ me, body }) => {
   if (task.status === TASK.IN_PROGRESS) task.editCount = (task.editCount || 0) + 1
   if (body.title !== undefined) task.title = String(body.title).slice(0, 30)
   if (body.description !== undefined) task.description = String(body.description).slice(0, 200)
+  // 传空数组 = 把图全删掉；不传 = 不改
+  if (body.images !== undefined) task.images = normalizeImages(body.images)
   if (body.deadline) task.deadline = parseTime(body.deadline)
   if (body.completionMode !== undefined) task.completionMode = Number(body.completionMode)
   if (body.remindMinutes !== undefined) task.remindMinutes = Number(body.remindMinutes)

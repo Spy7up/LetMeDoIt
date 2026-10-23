@@ -1,4 +1,5 @@
 const taskApi = require('../../../services/task')
+const fileApi = require('../../../services/file')
 const { presentDetail } = require('../../../utils/present')
 
 const QUICK = ['我搞定了', '已扫完', '马上到', '弄完了']
@@ -13,6 +14,7 @@ Page({
     submitting: false,
     maxImages: 3,
     hint: '',
+    uploading: false,
   },
 
   onLoad(options) {
@@ -62,16 +64,39 @@ Page({
 
   chooseImage() {
     const left = this.data.maxImages - this.data.images.length
-    if (left <= 0) return
+    if (left <= 0 || this.data.uploading) return
     wx.chooseMedia({
       count: left,
       mediaType: ['image'],
       sizeType: ['compressed'],
       success: (res) => {
         const paths = res.tempFiles.map((f) => f.tempFilePath)
-        this.setData({ images: this.data.images.concat(paths) })
+        this.uploadAll(paths)
       },
     })
+  },
+
+  /**
+   * 逐张传到对象存储，成功才进列表
+   * 列表里存的必须是公网 URL：微信临时路径换个设备就失效了
+   */
+  async uploadAll(paths) {
+    this.setData({ uploading: true })
+    const images = this.data.images.slice()
+    let failed = 0
+    for (const path of paths) {
+      try {
+        const file = await fileApi.uploadImage(path, 'task-image')
+        images.push(file.url)
+        this.setData({ images: images.slice() })
+      } catch (e) {
+        failed++
+      }
+    }
+    this.setData({ uploading: false })
+    if (failed) {
+      wx.showToast({ title: failed + ' 张没传上，再选一次', icon: 'none' })
+    }
   },
 
   removeImage(e) {
@@ -88,6 +113,10 @@ Page({
 
   async submit() {
     if (this.data.submitting) return
+    if (this.data.uploading) {
+      wx.showToast({ title: '图片还在上传，稍等一下', icon: 'none' })
+      return
+    }
     this.setData({ submitting: true })
     try {
       await taskApi.complete(this.taskId, {

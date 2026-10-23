@@ -116,6 +116,8 @@ function detail(vo) {
     id: id(vo.taskId),
     title: vo.title || '',
     description: vo.description || '',
+    // 布置时给的参考图，公网 URL；详情页直接渲染，不用再过 presentUser 那一层
+    images: vo.images || [],
     creator: user(vo.creator),
     participants: (vo.participants || []).map(participant),
     completionMode: toCompletionMode(vo.completionMode),

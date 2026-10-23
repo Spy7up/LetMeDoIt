@@ -33,7 +33,7 @@
         </view>
         <text class="hero-title">{{task.title}}</text>
         <view class="byline">
-          <view class="av av-24" style="{{task.creator.avatarStyle}}">{{task.creator.initial}}</view>
+          <user-avatar user="{{task.creator}}" size="24" />
           <text>{{task.bylineText}}</text>
         </view>
       </view>
@@ -79,32 +79,60 @@
         </view>
       </view>
 
-      <!-- 描述 -->
-      <view class="block" wx:if="{{task.description}}">
+      <!-- 描述 + 布置时给的参考图 -->
+      <view class="block" wx:if="{{task.description || task.shotCount}}">
         <view class="blabel">{{task.isCreator ? '我交代的' : 'TA 说的'}}</view>
-        <text class="block-text">{{task.description}}</text>
+        <text class="block-text" wx:if="{{task.description}}">{{task.description}}</text>
+        <view class="d-shots" wx:if="{{task.shotCount}}">
+          <view
+            class="d-shot"
+            wx:for="{{task.shots}}"
+            wx:key="*this"
+            data-index="{{index}}"
+            bindtap="previewTaskImage"
+          >
+            <image class="d-shot-img" src="{{item}}" mode="aspectFill" />
+            <view class="d-more" wx:if="{{index === 2 && task.shotMore}}">+{{task.shotMore}}</view>
+          </view>
+        </view>
+        <text class="d-hint" wx:if="{{task.shotCount}}">{{task.shotHint}}</text>
       </view>
 
       <!-- 参与者 -->
       <view class="block">
         <view class="blabel">
           <text>参与的人 · {{task.totalCount}}</text>
-          <text class="blabel-hint">点一下看备注</text>
         </view>
         <view
-          class="p-row"
+          class="p-row {{item.shotCount ? 'p-row-rich' : ''}}"
           wx:for="{{task.participants}}"
           wx:key="userId"
-          data-index="{{index}}"
-          bindtap="showParticipant"
         >
-          <view class="av av-32" style="{{item.avatarStyle}}">{{item.initial}}</view>
+          <user-avatar user="{{item}}" size="32" />
           <view class="who">
             <view class="p-name">
               <text>{{item.nickname}}</text>
               <text class="p-me" wx:if="{{item.userId === task.meId}}"> · 我</text>
             </view>
             <text class="p-sub">{{item.subText}}</text>
+
+            <!-- 完成凭证：一行最多 3 张，点开看大图 -->
+            <view class="p-shots" wx:if="{{item.shotCount}}">
+              <view
+                class="shot"
+                wx:for="{{item.shotList}}"
+                wx:for-item="shot"
+                wx:for-index="pi"
+                wx:key="*this"
+                data-index="{{index}}"
+                data-pi="{{pi}}"
+                catchtap="previewImage"
+              >
+                <image class="shot-img" src="{{shot}}" mode="aspectFill" />
+                <view class="shot-more" wx:if="{{item.moreCount && pi === 2}}">+{{item.moreCount}}</view>
+              </view>
+            </view>
+            <text class="shot-hint" wx:if="{{item.shotCount}}">{{item.shotHint}}</text>
           </view>
           <text class="tag {{item.statusClass}}">{{item.statusLabel}}</text>
         </view>

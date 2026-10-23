@@ -71,7 +71,7 @@ function detail(id) {
 
 /**
  * 布置任务
- * @param {{title:string, description?:string, participantIds:string[],
+ * @param {{title:string, description?:string, images?:string[], participantIds:string[],
  *          completionMode:'any'|'all', deadline:string, startAt?:string,
  *          remindMinutes?:number}} dto
  */
@@ -79,6 +79,7 @@ function create(dto) {
   const body = {
     title: dto.title,
     description: dto.description || '',
+    images: (dto.images || []).slice(),
     memberIds: toIdList(dto.participantIds),
     completionMode: dto.completionMode === 'any' ? 1 : 2,
     deadline: apiTime(dto.deadline),
@@ -100,6 +101,8 @@ function update(id, dto) {
   const body = { taskId: Number(id) }
   if (dto.title !== undefined) body.title = dto.title
   if (dto.description !== undefined) body.description = dto.description
+  // 传空数组 = 把图全删掉；不传 = 不改（后端按 null / 空列表区分）
+  if (dto.images !== undefined) body.images = dto.images.slice()
   if (dto.completionMode !== undefined) body.completionMode = dto.completionMode === 'any' ? 1 : 2
   if (dto.deadline) body.deadline = apiTime(dto.deadline)
   if (dto.remindMinutes !== undefined) body.remindMinutes = dto.remindMinutes

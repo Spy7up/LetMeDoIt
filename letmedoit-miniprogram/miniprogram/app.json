@@ -2,6 +2,7 @@
   "pages": [
     "pages/tasks/index/index",
     "pages/launch/index",
+    "pages/onboarding/index",
     "pages/tasks/create/index",
     "pages/tasks/detail/index",
     "pages/tasks/complete/index",

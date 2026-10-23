@@ -32,8 +32,12 @@ public class DictManager {
 
     /**
      * 获取字典
+     * <p>
+     * unless：缓存配置是 disableCachingNullValues（禁止缓存 null 防穿透），
+     * 字典项不存在时如果不排除 null 会直接抛 IllegalArgumentException。
+     * 排除之后，缺失的字典项每次回查 DB，补上数据立刻生效，不用等缓存过期或重启。
      */
-    @Cacheable(value = CacheKeyConst.Dict.DICT_DATA, key = "#dictCode + '_' + #dataValue")
+    @Cacheable(value = CacheKeyConst.Dict.DICT_DATA, key = "#dictCode + '_' + #dataValue", unless = "#result == null")
     public DictDataVO getDictData(String dictCode, String dataValue) {
         DictEntity dictEntity = dictDao.selectByCode(dictCode);
         if (dictEntity == null) {

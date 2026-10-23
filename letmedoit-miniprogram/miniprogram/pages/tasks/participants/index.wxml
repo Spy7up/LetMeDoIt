@@ -24,7 +24,7 @@
         data-id="{{item.id}}"
         bindtap="toggle"
       >
-        <view class="av av-32" style="{{item.avatarStyle}}">{{item.initial}}</view>
+        <user-avatar user="{{item}}" size="32" />
         <view class="who">
           <text class="who-name">{{item.remark || item.nickname}}</text>
           <text class="who-sub">{{item.activeTaskCount}} 个任务在进行</text>

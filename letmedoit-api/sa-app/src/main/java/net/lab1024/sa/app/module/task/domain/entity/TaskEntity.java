@@ -38,6 +38,14 @@ public class TaskEntity implements Serializable {
     private String description;
 
     /**
+     * 附图，JSON 数组字符串，存公网 URL
+     * <p>
+     * 和 t_task_participant.complete_images 同一种存法：任务说明的图是「布置时给的」，
+     * 凭证图是「完成时交的」，两者语义不同所以不共用字段。
+     */
+    private String images;
+
+    /**
      * 委托人会员ID
      */
     private Long creatorId;

@@ -1,11 +1,23 @@
 const taskApi = require('../../../services/task')
 const notifyApi = require('../../../services/notify')
 const friendApi = require('../../../services/friend')
+const fileApi = require('../../../services/file')
 const { REMIND_OPTIONS } = require('../../../constants/task')
 const { presentUser } = require('../../../utils/present')
 const { defaultDeadline, isWholeDayDeadline } = require('../../../utils/format')
 
 const REMIND = REMIND_OPTIONS.filter((o) => o.key !== 'custom')
+
+/** 附图上限：一行放 4 格，6 张正好两行；再多该用聊天发了 */
+const MAX_IMAGES = 6
+
+let shotSeq = 0
+
+/** 上传格子的唯一 key：不用下标，删中间一张时其余格子不会错位 */
+function nextShotKey() {
+  shotSeq += 1
+  return 's' + shotSeq
+}
 
 function pad(n) {
   return n < 10 ? '0' + n : '' + n
@@ -119,6 +131,10 @@ Page({
     submitting: false,
     canSubmit: false,
     today: '',
+    // 附图：选完立刻传，state = uploading / done / failed
+    shots: [],
+    maxImages: MAX_IMAGES,
+    uploadingCount: 0,
     // 编辑模式：从详情页带 taskId 进来
     editing: false,
     taskId: '',
@@ -172,6 +188,14 @@ Page({
         taskStatus: d.status,
         title: d.title || '',
         description: d.description || '',
+        // 已有的图都是公网 URL，直接当 done；用户想换就删了重传
+        shots: (d.images || []).map((url, i) => ({
+          k: 'r' + i,
+          url,
+          tempPath: '',
+          state: 'done',
+        })),
+        uploadingCount: 0,
         mode: d.completionMode,
         scheduled: !!startAt,
         startNotify: d.startNotify !== false,
@@ -261,6 +285,92 @@ Page({
     this.setData({ description: e.detail.value })
   },
 
+  /* ---------------- 附图 ---------------- */
+
+  /**
+   * 选图 → 立刻上传
+   *
+   * 不等点发布：选完就能看到图，也不会出现"点了发布才发现图没传上去"。
+   * 上传中的项会禁用发布按钮，本机临时路径永远不会被提交（和头像同一条铁律）。
+   */
+  chooseImage() {
+    const left = this.data.maxImages - this.data.shots.length
+    if (left <= 0) {
+      wx.showToast({ title: '最多 ' + this.data.maxImages + ' 张，够用了', icon: 'none' })
+      return
+    }
+    wx.chooseMedia({
+      count: left,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const files = res.tempFiles || []
+        if (!files.length) return
+        const adds = files.map((f) => ({
+          k: nextShotKey(),
+          url: '',
+          tempPath: f.tempFilePath,
+          state: 'uploading',
+        }))
+        this.applyShots(this.data.shots.concat(adds))
+        adds.forEach((item) => this.uploadShot(item.k, item.tempPath))
+      },
+    })
+  },
+
+  async uploadShot(key, tempPath) {
+    try {
+      const res = await fileApi.uploadImage(tempPath, 'task-image')
+      // 传完立刻丢掉本机路径，只留公网 URL
+      this.patchShot(key, { url: res.url, tempPath: '', state: 'done' })
+    } catch (e) {
+      this.patchShot(key, { state: 'failed' })
+    }
+  },
+
+  retryImage(e) {
+    const key = e.currentTarget.dataset.key
+    const shot = this.findShot(key)
+    if (!shot || shot.state !== 'failed' || !shot.tempPath) return
+    this.patchShot(key, { state: 'uploading' })
+    this.uploadShot(key, shot.tempPath)
+  },
+
+  removeImage(e) {
+    const key = e.currentTarget.dataset.key
+    this.applyShots(this.data.shots.filter((s) => s.k !== key))
+  },
+
+  /** 点已传好的图看大图 */
+  previewShot(e) {
+    const key = e.currentTarget.dataset.key
+    const urls = this.imageUrls()
+    const shot = this.findShot(key)
+    if (!shot || !shot.url || !urls.length) return
+    wx.previewImage({ current: shot.url, urls })
+  },
+
+  applyShots(shots) {
+    this.setData({
+      shots,
+      uploadingCount: shots.filter((s) => s.state === 'uploading').length,
+    })
+  },
+
+  patchShot(key, patch) {
+    const shots = this.data.shots.map((s) => (s.k === key ? Object.assign({}, s, patch) : s))
+    this.applyShots(shots)
+  },
+
+  findShot(key) {
+    return this.data.shots.filter((s) => s.k === key)[0] || null
+  },
+
+  /** 提交时只取传成功的公网地址；失败/传中的一律不进去 */
+  imageUrls() {
+    return this.data.shots.filter((s) => s.state === 'done' && s.url).map((s) => s.url)
+  },
+
   setMode(e) {
     this.setData({ mode: e.currentTarget.dataset.mode })
   },
@@ -319,6 +429,11 @@ Page({
 
   async submit() {
     if (this.data.submitting) return
+    // 有图还在传就不许发：否则会把没传完的那张静默丢掉
+    if (this.data.uploadingCount > 0) {
+      wx.showToast({ title: '还有图在传，等一下', icon: 'none' })
+      return
+    }
 
     const title = this.data.title.trim()
     if (!title) {
@@ -380,6 +495,7 @@ Page({
         const payload = {
           title,
           description: this.data.description,
+          images: this.imageUrls(),
           completionMode: this.data.mode,
           deadline,
           remindMinutes,
@@ -401,6 +517,7 @@ Page({
       await taskApi.create({
         title,
         description: this.data.description,
+        images: this.imageUrls(),
         participantIds: this.data.selectedIds,
         completionMode: this.data.mode,
         deadline,

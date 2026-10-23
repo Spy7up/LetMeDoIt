@@ -1,7 +1,7 @@
 <view class="page">
   <view class="page-body">
     <view class="f-head" wx:if="{{friend}}">
-      <view class="av av-56" style="{{friend.avatarStyle}}">{{friend.initial}}</view>
+      <user-avatar user="{{friend}}" size="56" />
       <text class="f-name">{{friend.nickname}}</text>
       <text class="f-sub">{{count ? count + ' 个任务还在进行' : '眼下没有进行中的任务'}}</text>
     </view>

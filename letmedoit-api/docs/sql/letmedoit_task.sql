@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS `t_task` (
   `task_id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '任务ID',
   `title`            VARCHAR(60)     NOT NULL                COMMENT '任务标题',
   `description`      VARCHAR(500)    DEFAULT NULL            COMMENT '交代内容',
+  `images`           VARCHAR(1000)   DEFAULT NULL            COMMENT '附图，JSON 数组字符串，最多 6 张公网 URL',
   `creator_id`       BIGINT UNSIGNED NOT NULL                COMMENT '委托人会员ID',
   `completion_mode`  TINYINT         NOT NULL DEFAULT 2      COMMENT '完成条件 1任一人完成 2全员完成',
   `status`           TINYINT         NOT NULL DEFAULT 1      COMMENT '聚合状态 0预约中 1待接受 2进行中 3已完成 4已拒绝 5已撤回',

@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "任务详情",
-  "enablePullDownRefresh": true
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "user-avatar": "/components/user-avatar/index"
+  }
 }
