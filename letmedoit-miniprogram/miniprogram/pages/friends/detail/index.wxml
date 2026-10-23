@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="page-body">
+    <view class="f-head" wx:if="{{friend}}">
+      <user-avatar user="{{friend}}" size="56" />
+      <text class="f-name">{{friend.nickname}}</text>
+      <text class="f-sub">{{count ? count + ' 个任务还在进行' : '眼下没有进行中的任务'}}</text>
+    </view>
+
+    <view class="card f-card">
+      <view class="f-row" bindtap="assign">
+        <text class="f-row-t">给 TA 派个活</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <view class="f-row f-danger" bindtap="remove">
+        <text class="f-row-t">解除好友关系</text>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+    </view>
+
+    <view class="tip" style="margin-top:32rpx">
+      <image class="ic-sm" src="/images/icons/bell-brand.png" />
+      <text>你派给 TA 的任务，TA 会收到微信服务通知</text>
+    </view>
+  </view>
+</view>

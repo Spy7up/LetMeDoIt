@@ -1,0 +1,45 @@
+<view class="page">
+  <form bindsubmit="onSubmit">
+    <view class="page-body">
+      <view class="avatar-block">
+        <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{avatarUrl}}" class="avatar-img" src="{{avatarUrl}}" mode="aspectFill" binderror="onAvatarError" />
+          <view wx:else class="av av-56" style="{{avatarStyle}}">{{initial}}</view>
+          <view class="avatar-mask">换</view>
+        </button>
+        <text class="avatar-tip">{{uploading ? '上传中…' : '点头像，从微信头像里选'}}</text>
+      </view>
+
+      <view class="field">
+        <view class="flabel">怎么称呼你</view>
+        <input
+          class="input"
+          name="nickname"
+          type="nickname"
+          placeholder="点这里，键盘上方可用微信昵称"
+          placeholder-class="ph"
+          maxlength="20"
+          value="{{nicknameInit}}"
+          bindinput="onNickname"
+          bindblur="onNickname"
+          bindconfirm="onNickname"
+          bindnicknamereview="onNicknameReview"
+        />
+        <text class="counter">{{count}}/20</text>
+      </view>
+
+      <view class="tip">
+        <image class="ic-sm" src="/images/icons/bell-brand.png" />
+        <text>头像只在你手机上显示，好友看到的是你名字的最后一个字</text>
+      </view>
+
+      <view class="actionbar-space"></view>
+    </view>
+
+    <view class="actionbar">
+      <button class="btn btn-primary btn-lg {{saving ? 'disabled' : ''}}" form-type="submit" disabled="{{saving || uploading}}">
+        {{saving ? '保存中…' : (uploading ? '头像上传中…' : '保存')}}
+      </button>
+    </view>
+  </form>
+</view>

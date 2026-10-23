@@ -1,0 +1,80 @@
+:host {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.ua {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.ua-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.ua-txt {
+  line-height: 1;
+}
+
+.ua-24 {
+  width: 48rpx;
+  height: 48rpx;
+  font-size: 21rpx;
+}
+
+.ua-28 {
+  width: 56rpx;
+  height: 56rpx;
+  font-size: 24rpx;
+}
+
+.ua-32 {
+  width: 64rpx;
+  height: 64rpx;
+  font-size: 25rpx;
+}
+
+.ua-56 {
+  width: 112rpx;
+  height: 112rpx;
+  font-size: 38rpx;
+  border-radius: 40rpx;
+}
+
+/* 叠头像：白边 + 左侧压叠 */
+.ua-ring {
+  border: 4rpx solid #fff;
+}
+
+.ua-overlap {
+  margin-left: -16rpx;
+}
+
+/* 右下角状态点 */
+.ua-flag::after {
+  content: '';
+  position: absolute;
+  right: -2rpx;
+  bottom: -2rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  border: 3rpx solid #fff;
+  background: #d9d2ca;
+}
+
+.ua-flag.ua-done::after {
+  background: #17a67c;
+}
+
+.ua-flag.ua-rejected::after {
+  background: #b9aea4;
+}

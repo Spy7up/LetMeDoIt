@@ -1,0 +1,91 @@
+<view class="page">
+  <view class="page-body">
+    <!-- 添加好友：邀请码 + 输码加人，全在这一张卡里，不用再进二级页 -->
+    <view class="add-card">
+      <view class="add-head">
+        <text class="add-title">添加好友</text>
+        <text class="add-sub">互相加好友后才能派活</text>
+      </view>
+
+      <view class="code-row">
+        <view class="code-main">
+          <text class="code-cap">我的邀请码</text>
+          <text class="code-val">{{inviteCode || '——'}}</text>
+        </view>
+        <view class="code-ops">
+          <view class="cap cap-ghost" bindtap="copyCode">复制</view>
+          <button class="cap cap-primary" open-type="share">发给好友</button>
+        </view>
+      </view>
+
+      <view class="apply-row">
+        <input
+          class="apply-input"
+          placeholder="输入对方的 6 位邀请码"
+          placeholder-class="ph"
+          maxlength="6"
+          value="{{inputCode}}"
+          confirm-type="done"
+          bindinput="onInputCode"
+          bindconfirm="applyCode"
+        />
+        <view class="apply-btn {{applying ? 'disabled' : ''}}" bindtap="applyCode">
+          {{applying ? '添加中' : '添加'}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 好友请求 -->
+    <block wx:if="{{requests.length}}">
+      <view class="sec-label"><text>新的请求</text><text class="sec-num">· {{requests.length}}</text></view>
+      <view class="req-card" wx:for="{{requests}}" wx:key="requestId">
+        <view class="req-top">
+          <user-avatar user="{{item}}" size="32" />
+          <view class="who">
+            <text class="who-name">{{item.nickname}}</text>
+            <text class="who-sub">{{item.message}}</text>
+          </view>
+        </view>
+        <view class="req-actions">
+          <view class="btn btn-ghost btn-sm" data-id="{{item.requestId}}" catchtap="reject">忽略</view>
+          <view class="btn btn-primary btn-sm" data-id="{{item.requestId}}" catchtap="accept">同意</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 好友列表 -->
+    <view class="sec-label"><text>我的好友</text><text class="sec-num">· {{friends.length}}</text></view>
+
+    <view class="list" wx:if="{{friends.length}}">
+      <view
+        class="row"
+        wx:for="{{friends}}"
+        wx:key="id"
+        data-uid="{{item.id}}"
+        data-fid="{{item.friendId}}"
+        data-name="{{item.rawName}}"
+        data-count="{{item.activeTaskCount}}"
+        bindtap="goDetail"
+      >
+        <user-avatar user="{{item}}" size="32" />
+        <view class="who">
+          <text class="who-name">{{item.remark || item.nickname}}</text>
+          <text class="who-sub">{{item.lastText}}</text>
+        </view>
+        <view class="row-act" data-userid="{{item.id}}" catchtap="assign">派活</view>
+        <image class="chev" src="/images/icons/chevron-ghost.png" />
+      </view>
+    </view>
+
+    <view class="empty" wx:elif="{{!loading}}">
+      <view class="empty-ring">
+        <image class="ic-md" src="/images/icons/tab-users.png" />
+      </view>
+      <text class="empty-title">还没有好友</text>
+      <text class="empty-sub">把邀请码发给家人，\n他们输一次就能加你。</text>
+      <button class="btn btn-ghost empty-btn" open-type="share">分享邀请</button>
+    </view>
+
+    <view class="tab-space"></view>
+  </view>
+</view>

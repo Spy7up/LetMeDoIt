@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "布置任务",
+  "usingComponents": {
+    "user-avatar": "/components/user-avatar/index"
+  }
+}

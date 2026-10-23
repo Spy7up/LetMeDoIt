@@ -1,0 +1,60 @@
+.avatar-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 48rpx 0 40rpx;
+}
+
+.avatar-btn {
+  position: relative;
+  width: 132rpx;
+  height: 132rpx;
+  padding: 0;
+  border-radius: 44rpx;
+  background: transparent;
+  line-height: 1;
+  overflow: visible;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.avatar-img,
+.avatar-btn .av {
+  width: 132rpx;
+  height: 132rpx;
+  border-radius: 44rpx;
+  font-size: 52rpx;
+}
+
+.avatar-mask {
+  position: absolute;
+  right: -6rpx;
+  bottom: -6rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #fff;
+  border: 1rpx solid var(--line2);
+  color: var(--ink2);
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-tip {
+  font-size: 21rpx;
+  color: var(--ink3);
+}
+
+.ph {
+  color: var(--ink3);
+}
+
+/* <button> 会被 app.wxss 里的 button.btn 收成 width:auto，这里显式撑满 */
+.actionbar button.btn {
+  width: 100%;
+}

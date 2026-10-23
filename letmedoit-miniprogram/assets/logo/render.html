@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  html,body{margin:0;padding:0;background:transparent}
+  #stage{display:flex;align-items:center;justify-content:center;overflow:hidden}
+  img{display:block}
+</style></head>
+<body>
+<div id="stage"><img id="img" /></div>
+<script>
+  var q = new URLSearchParams(location.search);
+  var size = parseInt(q.get('s') || '1024', 10);
+  var file = q.get('f') || 'icon.svg';
+  var stage = document.getElementById('stage');
+  stage.style.width = size + 'px';
+  stage.style.height = size + 'px';
+  var img = document.getElementById('img');
+  img.src = './' + file;
+  img.style.width = size + 'px';
+  img.style.height = size + 'px';
+</script>
+</body></html>

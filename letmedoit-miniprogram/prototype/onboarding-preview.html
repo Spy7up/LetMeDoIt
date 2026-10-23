@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>让我做 · 首登引导页预览</title>
+<style>
+  :root {
+    --brand: #ff6b4a;
+    --brand-ink: #d64c28;
+    --brand-soft: #ffede7;
+    --ink1: #1e1b18;
+    --ink2: #6b625b;
+    --ink3: #a69c93;
+    --line: #efe9e3;
+    --bg: #f7f4f1;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px 56px;
+    background: #efeae4;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Helvetica, sans-serif;
+    color: var(--ink1);
+    -webkit-font-smoothing: antialiased;
+  }
+  .stage { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .caption { font-size: 12px; color: #8c8279; letter-spacing: 0.2px; }
+
+  /* 375 x 760 手机框，1rpx = 0.5px */
+  .phone {
+    position: relative;
+    width: 375px;
+    height: 760px;
+    border-radius: 40px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #fff3ee 0%, #f7f4f1 42%, #f7f4f1 100%);
+    box-shadow: 0 24px 60px rgba(60, 40, 20, 0.16), 0 0 0 8px #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 44px 24px 0;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 44px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px; font-size: 13px; font-weight: 600; color: var(--ink1);
+  }
+  .statusbar .dots { display: flex; gap: 4px; align-items: center; }
+  .statusbar .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink1); opacity: .85; }
+
+  .head { padding: 32px 0 22px; }
+  .step {
+    display: inline-block; padding: 3px 9px; border-radius: 50px;
+    background: var(--brand-soft); color: var(--brand-ink);
+    font-size: 10px; letter-spacing: .5px;
+  }
+  .title { margin-top: 13px; font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+  .sub { margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--ink2); }
+
+  .card {
+    padding: 24px 18px 18px; border-radius: 18px; background: var(--card);
+    box-shadow: 0 4px 16px rgba(60, 40, 20, 0.06);
+  }
+  .avatar-wrap { display: flex; flex-direction: column; align-items: center; }
+  .avatar-btn { position: relative; width: 84px; height: 84px; }
+  .avatar-default {
+    width: 84px; height: 84px; border-radius: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 500;
+  }
+  .avatar-img {
+    width: 84px; height: 84px; border-radius: 28px; object-fit: cover; display: block;
+    background: linear-gradient(135deg, #ffd9a8, #ff8f6b);
+  }
+  .avatar-badge {
+    position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px;
+    border-radius: 50%; border: 2px solid #fff; background: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar-badge svg { width: 13px; height: 13px; }
+  .avatar-tip { margin-top: 10px; font-size: 11px; color: var(--ink3); }
+
+  .field {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 26px; padding-bottom: 8px; border-bottom: 0.5px solid var(--line);
+  }
+  .flabel { font-size: 13px; color: var(--ink2); }
+  .input { flex: 1; font-size: 16px; }
+  .counter { font-size: 10px; color: var(--ink3); }
+  .note { margin-top: 8px; font-size: 10px; line-height: 1.6; color: var(--ink3); }
+
+  .foot { margin-top: auto; padding: 24px 0 40px; display: flex; flex-direction: column; }
+  .btn {
+    height: 46px; border-radius: 13px; background: var(--brand); color: #fff;
+    font-size: 15px; display: flex; align-items: center; justify-content: center;
+    letter-spacing: .5px;
+  }
+  .skip { margin-top: 5px; padding: 13px 0; text-align: center; font-size: 12px; color: var(--ink3); }
+
+  .home-bar {
+    position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+    width: 134px; height: 5px; border-radius: 3px; background: #1e1b18; opacity: .18;
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="col">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></div>
+
+        <div class="head">
+          <div><span class="step">第一次来 · 只需一步</span></div>
+          <div class="title">让别人知道是你</div>
+          <div class="sub">好友派活、你完成任务时，都会显示这个头像和名字。以后随时能改。</div>
+        </div>
+
+        <div class="card">
+          <div class="avatar-wrap">
+            <div class="avatar-btn">
+              <div class="avatar-default" style="background:#FFD9CF;color:#B4492A">豆</div>
+              <div class="avatar-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7h3l1.6-2h8.8L18 7h3v12H3z" /><circle cx="12" cy="13" r="3.4" />
+                </svg>
+              </div>
+            </div>
+            <div class="avatar-tip">点一下，从微信头像里挑</div>
+          </div>
+
+          <div class="field">
+            <span class="flabel">名字</span>
+            <span class="input">用户K7X2</span>
+            <span class="counter">6/20</span>
+          </div>
+          <div class="note">点输入框，键盘上方可以直接选微信昵称</div>
+        </div>
+
+        <div class="foot">
+          <div class="btn">就这么定</div>
+          <div class="skip">先跳过，用默认的头像和名字</div>
+        </div>
+        <div class="home-bar"></div>
+      </div>
+      <div class="caption">默认态：文字头像 + 随机名「用户XXXX」</div>
+    </div>
+
+    <div class="col">
+      <div class="phone">
+        <div class="statusbar"><span>9:41</span><span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></div>
+
+        <div class="head">
+          <div><span class="step">第一次来 · 只需一步</span></div>
+          <div class="title">让别人知道是你</div>
+          <div class="sub">好友派活、你完成任务时，都会显示这个头像和名字。以后随时能改。</div>
+        </div>
+
+        <div class="card">
+          <div class="avatar-wrap">
+            <div class="avatar-btn">
+              <div class="avatar-img"></div>
+              <div class="avatar-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7h3l1.6-2h8.8L18 7h3v12H3z" /><circle cx="12" cy="13" r="3.4" />
+                </svg>
+              </div>
+            </div>
+            <div class="avatar-tip">点一下，从微信头像里挑</div>
+          </div>
+
+          <div class="field">
+            <span class="flabel">名字</span>
+            <span class="input">阿豆</span>
+            <span class="counter">2/20</span>
+          </div>
+          <div class="note">点输入框，键盘上方可以直接选微信昵称</div>
+        </div>
+
+        <div class="foot">
+          <div class="btn">就这么定</div>
+          <div class="skip">先跳过，用默认的头像和名字</div>
+        </div>
+        <div class="home-bar"></div>
+      </div>
+      <div class="caption">选过之后：本机预览头像 + 自己填的名字</div>
+    </div>
+  </div>
+</body>
+</html>

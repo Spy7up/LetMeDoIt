@@ -2,6 +2,7 @@
 [Dd]esktop.ini
 Thumbs.db
 $RECYCLE.BIN/
+.workbuddy
 
 # macOS
 .DS_Store
@@ -12,3 +13,23 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
+
+# Java / SpringBoot（letmedoit-api）
+target/
+build/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# 本地配置与日志
+.env
+.env.local
+*.log
+logs/

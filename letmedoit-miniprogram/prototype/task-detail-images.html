@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>任务详情 · 完成凭证展示 原型</title>
+<style>
+  :root {
+    --brand: #ff6b4a;
+    --brand-ink: #d64c28;
+    --brand-soft: #ffede7;
+    --mint: #17a67c;
+    --mint-soft: #e4f6ef;
+    --amber: #e08a00;
+    --amber-soft: #fdf3e2;
+    --ink1: #1e1b18;
+    --ink2: #6b625b;
+    --ink3: #a69c93;
+    --line: #efe9e3;
+    --line2: #e6dfd8;
+    --bg: #f7f4f1;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 36px 20px 56px; background: #efeae4;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Helvetica, sans-serif;
+    color: var(--ink1); -webkit-font-smoothing: antialiased;
+  }
+  .stage { display: flex; gap: 44px; justify-content: center; flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .caption { font-size: 12px; color: #8c8279; }
+  .caption b { color: #4a423b; font-weight: 600; }
+
+  .phone {
+    position: relative; width: 375px; height: 812px; border-radius: 40px; overflow: hidden;
+    background: var(--bg); box-shadow: 0 24px 60px rgba(60,40,20,.16), 0 0 0 8px #fff;
+    display: flex; flex-direction: column;
+  }
+  .statusbar {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; font-size: 13px; font-weight: 600; flex: 0 0 auto;
+  }
+  .dots { display: flex; gap: 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink1); opacity: .8; }
+
+  .nav {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 16px; font-weight: 500; flex: 0 0 auto;
+  }
+  .nav .back { font-size: 18px; color: var(--ink2); }
+  .nav .act { font-size: 13px; color: var(--ink2); }
+
+  .body { flex: 1; overflow: hidden; padding: 0 16px 90px; }
+
+  .hero { padding: 4px 0 16px; }
+  .tagline { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .tag {
+    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600;
+    background: var(--brand-soft); color: var(--brand-ink);
+  }
+  .tag.mint { background: var(--mint-soft); color: var(--mint); }
+  .title { font-size: 23px; font-weight: 700; line-height: 1.35; letter-spacing: -.3px; }
+  .byline { margin-top: 10px; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink2); }
+
+  .av {
+    width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .av-32 { width: 32px; height: 32px; font-size: 13px; }
+
+  .block { background: var(--card); border-radius: 16px; padding: 14px 14px; margin-bottom: 12px; }
+  .blabel {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: var(--ink3); margin-bottom: 10px;
+  }
+  .block-text { font-size: 13px; color: var(--ink2); line-height: 1.7; }
+
+  .p-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .p-row + .p-row { border-top: 1px solid var(--line); }
+  .who { flex: 1; min-width: 0; }
+  .p-name { font-size: 14px; font-weight: 500; }
+  .p-me { color: var(--ink3); font-weight: 400; }
+  .p-sub { font-size: 11px; color: var(--ink3); margin-top: 2px; }
+  .p-tag { font-size: 11px; color: var(--mint); background: var(--mint-soft); padding: 2px 8px; border-radius: 100px; }
+  .p-tag.pending { color: var(--amber); background: var(--amber-soft); }
+
+  /* 时间线 */
+  .tl-item { display: flex; gap: 9px; padding-bottom: 10px; position: relative; }
+  .tl-item:last-child { padding-bottom: 0; }
+  .tl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); margin-top: 6px; flex: 0 0 auto; position: relative; z-index: 1; }
+  .tl-item:not(:last-child) .tl-dot::after {
+    content: ''; position: absolute; left: 2px; top: 10px; width: 1.5px; height: 46px; background: var(--line2);
+  }
+  .tl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .tl-text { font-size: 12.5px; line-height: 1.5; }
+  .tl-time { font-size: 10.5px; color: var(--ink3); }
+  .tl-note {
+    margin-top: 5px; font-size: 12px; color: var(--ink2); line-height: 1.6;
+    background: #faf8f6; border-radius: 8px; padding: 7px 9px;
+  }
+  .thumbs { display: flex; gap: 6px; margin-top: 7px; }
+  .thumb {
+    width: 48px; height: 48px; border-radius: 8px; overflow: hidden; position: relative;
+    background: linear-gradient(135deg, #ffd9a8, #ff8f6b); flex: 0 0 auto;
+  }
+  .thumb.sky { background: linear-gradient(135deg, #cfe4ff, #7aa7e8); }
+  .thumb.paper { background: linear-gradient(135deg, #e9e4dc, #c9beb0); }
+  .thumb .more {
+    position: absolute; inset: 0; background: rgba(30,27,24,.5); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;
+  }
+  .thumb-hint { margin-top: 5px; font-size: 10.5px; color: var(--ink3); }
+
+  .actionbar {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px 26px;
+    background: linear-gradient(to top, #f7f4f1 62%, rgba(247,244,241,0));
+  }
+  .btn {
+    height: 46px; border-radius: 13px; background: var(--brand); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; letter-spacing: .5px;
+  }
+  .home-bar { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: #1e1b18; opacity: .18; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <!-- 方案 A：进展时间线 -->
+    <div class="col">
+      <div class="phone">
+        <div class="statusbar"><span>21:52</span><span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></div>
+        <div class="nav"><span class="back">‹</span><span>任务详情</span><span class="act">撤回</span></div>
+
+        <div class="body">
+          <div class="hero">
+            <div class="tagline"><span class="tag">进行中</span><span style="font-size:11px;color:#a69c93">还剩 3 小时</span></div>
+            <div class="title">周末大扫除</div>
+            <div class="byline">
+              <span class="av" style="background:#D6E4FF;color:#2B4C8C">妈</span>
+              <span>妈妈 布置的 · 3 人一起做</span>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="block-text">客厅、阳台、卫生间，做完各自那份点一下。</div>
+          </div>
+
+          <div class="block">
+            <div class="blabel"><span>参与的人 · 3</span><span>点一下看备注</span></div>
+            <div class="p-row">
+              <span class="av av-32" style="background:#FFD9CF;color:#B4492A">王</span>
+              <div class="who"><div class="p-name">小王 <span class="p-me">· 我</span></div><div class="p-sub">已完成自己那份</div></div>
+              <span class="p-tag">已完成</span>
+            </div>
+            <div class="p-row">
+              <span class="av av-32" style="background:#D9F0E4;color:#1F6B4F">明</span>
+              <div class="who"><div class="p-name">小明</div><div class="p-sub">还没说自己做完了</div></div>
+              <span class="p-tag pending">已接受</span>
+            </div>
+            <div class="p-row">
+              <span class="av av-32" style="background:#FBE7C6;color:#8A5A12">表</span>
+              <div class="who"><div class="p-name">表姐</div><div class="p-sub">还没接受</div></div>
+              <span class="p-tag pending">待接受</span>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="blabel"><span>进展</span></div>
+
+            <div class="tl-item">
+              <view class="tl-dot"></view>
+              <div class="tl-body">
+                <div class="tl-text">妈妈 创建了任务</div>
+                <div class="tl-time">今天 09:12</div>
+              </div>
+            </div>
+
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body">
+                <div class="tl-text">小明 接受了任务</div>
+                <div class="tl-time">今天 09:20</div>
+              </div>
+            </div>
+
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body">
+                <div class="tl-text">小王 完成了自己那份</div>
+                <div class="tl-time">今天 21:40</div>
+                <div class="tl-note">阳台衣服收进来叠好了，卫生间也刷了</div>
+                <div class="thumbs">
+                  <div class="thumb"></div>
+                  <div class="thumb sky"></div>
+                  <div class="thumb paper"><span class="more">+2</span></div>
+                </div>
+                <div class="thumb-hint">4 张图 · 点开看大图</div>
+              </div>
+            </div>
+
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body">
+                <div class="tl-text">我 完成了自己那份</div>
+                <div class="tl-time">今天 21:48</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actionbar"><div class="btn">完成我这份</div></div>
+        <div class="home-bar"></div>
+      </div>
+      <div class="caption"><b>方案 A（推荐）</b>　完成事件下挂缩略图 + 备注</div>
+    </div>
+
+    <!-- 方案 B：参与者行内 -->
+    <div class="col">
+      <div class="phone">
+        <div class="statusbar"><span>21:52</span><span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span></div>
+        <div class="nav"><span class="back">‹</span><span>任务详情</span><span class="act">撤回</span></div>
+
+        <div class="body">
+          <div class="hero">
+            <div class="tagline"><span class="tag">进行中</span><span style="font-size:11px;color:#a69c93">还剩 3 小时</span></div>
+            <div class="title">周末大扫除</div>
+            <div class="byline">
+              <span class="av" style="background:#D6E4FF;color:#2B4C8C">妈</span>
+              <span>妈妈 布置的 · 3 人一起做</span>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="block-text">客厅、阳台、卫生间，做完各自那份点一下。</div>
+          </div>
+
+          <div class="block">
+            <div class="blabel"><span>参与的人 · 3</span><span>点一下看备注</span></div>
+
+            <div class="p-row" style="align-items:flex-start;padding-bottom:14px">
+              <span class="av av-32" style="background:#FFD9CF;color:#B4492A;margin-top:2px">王</span>
+              <div class="who">
+                <div class="p-name">小王 <span class="p-me">· 我</span></div>
+                <div class="p-sub">已完成 · 21:40</div>
+                <div class="tl-note" style="margin-top:6px">阳台衣服收进来叠好了，卫生间也刷了</div>
+                <div class="thumbs" style="margin-top:6px">
+                  <div class="thumb"></div>
+                  <div class="thumb sky"></div>
+                  <div class="thumb paper"><span class="more">+2</span></div>
+                </div>
+              </div>
+              <span class="p-tag">已完成</span>
+            </div>
+
+            <div class="p-row">
+              <span class="av av-32" style="background:#D9F0E4;color:#1F6B4F">明</span>
+              <div class="who"><div class="p-name">小明</div><div class="p-sub">还没说自己做完了</div></div>
+              <span class="p-tag pending">已接受</span>
+            </div>
+            <div class="p-row">
+              <span class="av av-32" style="background:#FBE7C6;color:#8A5A12">表</span>
+              <div class="who"><div class="p-name">表姐</div><div class="p-sub">还没接受</div></div>
+              <span class="p-tag pending">待接受</span>
+            </div>
+          </div>
+
+          <div class="block">
+            <div class="blabel"><span>进展</span></div>
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-text">妈妈 创建了任务</div><div class="tl-time">今天 09:12</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-text">小明 接受了任务</div><div class="tl-time">今天 09:20</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-text">小王 完成了自己那份</div><div class="tl-time">今天 21:40</div></div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot"></div>
+              <div class="tl-body"><div class="tl-text">我 完成了自己那份</div><div class="tl-time">今天 21:48</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actionbar"><div class="btn">完成我这份</div></div>
+        <div class="home-bar"></div>
+      </div>
+      <div class="caption"><b>方案 B</b>　图片塞进参与者行（页面会明显变长）</div>
+    </div>
+  </div>
+</body>
+</html>

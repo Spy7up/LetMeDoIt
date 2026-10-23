@@ -1,0 +1,88 @@
+.launch {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-left: 48rpx;
+  padding-right: 48rpx;
+  background: linear-gradient(180deg, #fff3ee 0%, #f7f4f1 46%, #f7f4f1 100%);
+}
+
+.launch-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 80rpx;
+}
+
+.brand-mark {
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: 44rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 20rpx 48rpx rgba(238, 78, 40, 0.26);
+}
+
+.brand {
+  font-size: 72rpx;
+  font-weight: 700;
+  letter-spacing: -1rpx;
+  display: flex;
+  align-items: flex-end;
+}
+
+.brand-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-left: 10rpx;
+  margin-bottom: 14rpx;
+}
+
+.slogan {
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  color: var(--ink2);
+  line-height: 1.7;
+}
+
+.launch-card {
+  margin-top: 64rpx;
+  padding: 32rpx;
+  border-radius: 32rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 32rpx rgba(60, 40, 20, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.lc-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.lc-emoji {
+  font-size: 32rpx;
+}
+
+.lc-text {
+  font-size: 26rpx;
+  color: var(--ink2);
+}
+
+.launch-foot {
+  padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.launch-tip {
+  font-size: 21rpx;
+  color: var(--ink3);
+  text-align: center;
+  line-height: 1.6;
+}

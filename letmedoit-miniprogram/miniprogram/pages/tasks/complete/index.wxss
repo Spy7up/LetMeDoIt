@@ -1,0 +1,36 @@
+.done-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+  padding: 40rpx 0 36rpx;
+}
+
+.check-circle {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: var(--mint-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.done-title {
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.done-sub {
+  font-size: 23rpx;
+  color: var(--ink3);
+  text-align: center;
+  line-height: 1.6;
+  padding: 0 20rpx;
+}
+
+.ph {
+  color: var(--ink3);
+}
+
+/* 上传格子（.uploader / .thumb / .thumb-add-txt）和布置任务页共用，统一定义在 app.wxss */

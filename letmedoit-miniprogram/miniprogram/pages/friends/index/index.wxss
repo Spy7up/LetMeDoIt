@@ -1,0 +1,188 @@
+/* ---------------- 添加好友（内嵌，不用跳二级页） ---------------- */
+
+.add-card {
+  margin: 28rpx 0 24rpx;
+  padding: 26rpx 26rpx 24rpx;
+  border-radius: 30rpx;
+  background: #fff;
+  border: 1rpx solid var(--line);
+  box-shadow: 0 6rpx 24rpx rgba(60, 40, 20, 0.05);
+}
+
+.add-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.add-title {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: var(--ink1);
+}
+
+.add-sub {
+  font-size: 21rpx;
+  color: var(--ink3);
+}
+
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 18rpx;
+}
+
+.code-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rpx;
+  min-width: 0;
+}
+
+.code-cap {
+  font-size: 21rpx;
+  color: var(--ink3);
+}
+
+.code-val {
+  font-size: 42rpx;
+  font-weight: 700;
+  letter-spacing: 6rpx;
+  line-height: 1.15;
+  color: var(--brand-ink);
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.code-ops {
+  margin-left: auto;
+  display: flex;
+  gap: 14rpx;
+  flex: 0 0 auto;
+}
+
+.cap {
+  height: 60rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  font-size: 23rpx;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cap-ghost {
+  background: #fff;
+  color: var(--ink2);
+  border: 1rpx solid var(--line2);
+}
+
+.cap-primary {
+  background: var(--brand);
+  color: #fff;
+}
+
+/* <button open-type="share"> 的原生样式重置 */
+button.cap {
+  margin: 0;
+  width: auto;
+}
+
+button.cap::after {
+  border: none;
+}
+
+.apply-row {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 20rpx;
+}
+
+.apply-input {
+  flex: 1;
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: var(--bg);
+  border: 1rpx solid var(--line);
+  border-radius: 20rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  letter-spacing: 4rpx;
+}
+
+.ph {
+  color: var(--ink3);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.apply-btn {
+  flex: 0 0 auto;
+  height: 76rpx;
+  padding: 0 34rpx;
+  border-radius: 20rpx;
+  background: var(--brand);
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apply-btn.disabled {
+  opacity: 0.5;
+}
+
+.sec-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+  padding: 10rpx 4rpx 16rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--ink3);
+}
+
+.sec-num {
+  color: var(--ink3);
+  font-weight: 400;
+}
+
+.req-card {
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 24rpx 26rpx;
+  box-shadow: 0 4rpx 20rpx rgba(60, 40, 20, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-bottom: 20rpx;
+}
+
+.req-top {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.req-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.req-actions .btn {
+  flex: 1;
+}
+
+.row-act {
+  font-size: 23rpx;
+  color: var(--brand-ink);
+  background: var(--brand-soft);
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  flex: 0 0 auto;
+}

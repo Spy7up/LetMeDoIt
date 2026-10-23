@@ -1,0 +1,223 @@
+<view class="page">
+  <view class="page-body form-body">
+    <!-- 参与者 -->
+    <view class="field">
+      <view class="flabel">交给谁 <text class="req">*</text></view>
+      <view class="picker-box" bindtap="pickParticipants">
+        <view class="stack">
+          <user-avatar
+            wx:for="{{participants}}"
+            wx:key="id"
+            user="{{item}}"
+            size="32"
+            ring="{{true}}"
+            overlap="{{index > 0}}"
+          />
+          <view class="add-person" wx:if="{{!editing}}">
+            <image class="ic-sm" src="/images/icons/plus-muted.png" />
+          </view>
+        </view>
+        <text class="pick-hint">{{participants.length ? '已选 ' + participants.length + ' 人' : '从好友里选'}}</text>
+        <image class="ic-sm" src="/images/icons/chevron-ghost.png" />
+      </view>
+      <text class="pick-tip" wx:if="{{editing}}">已经交给的人不能在这里改</text>
+      <text class="pick-tip" wx:elif="{{participants.length > 1}}">
+        {{mode === 'all' ? '每人都要完成自己那份' : '谁先做完，这单就算完成'}}
+      </text>
+    </view>
+
+    <!-- 标题 -->
+    <view class="field">
+      <view class="flabel">做什么 <text class="req">*</text></view>
+      <input
+        class="input"
+        placeholder="比如：晾衣服"
+        placeholder-class="ph"
+        maxlength="30"
+        value="{{title}}"
+        bindinput="onTitle"
+      />
+      <text class="counter">{{title.length}}/30</text>
+    </view>
+
+    <!-- 描述 + 附图：图是「交代」的一部分，所以并在一栏，不新增字段 -->
+    <view class="field">
+      <view class="flabel">
+        <text>有什么要交代的</text>
+        <text class="flabel-opt">图片选填 · 最多 {{maxImages}} 张</text>
+      </view>
+      <textarea
+        class="textarea"
+        placeholder="比如：阳台的衣服，白的别和深色混"
+        placeholder-class="ph"
+        maxlength="200"
+        value="{{description}}"
+        bindinput="onDesc"
+      />
+      <view class="uploader">
+        <view class="thumb" wx:for="{{shots}}" wx:key="k">
+          <image
+            wx:if="{{item.url}}"
+            class="thumb-img"
+            src="{{item.url}}"
+            mode="aspectFill"
+            data-key="{{item.k}}"
+            bindtap="previewShot"
+          />
+          <image wx:else class="thumb-img" src="{{item.tempPath}}" mode="aspectFill" />
+          <view class="up-mask" wx:if="{{item.state === 'uploading'}}">
+            <view class="spinner"></view>
+            <text class="up-txt">上传中</text>
+          </view>
+          <view
+            class="retry"
+            wx:if="{{item.state === 'failed'}}"
+            data-key="{{item.k}}"
+            bindtap="retryImage"
+          >
+            <text class="retry-txt">失败</text>
+            <text class="retry-txt sub">点重试</text>
+          </view>
+          <view
+            class="thumb-del"
+            wx:if="{{item.state !== 'uploading'}}"
+            data-key="{{item.k}}"
+            catchtap="removeImage"
+          >×</view>
+        </view>
+        <view class="thumb add" wx:if="{{shots.length < maxImages}}" bindtap="chooseImage">
+          <image class="ic-md" src="/images/icons/camera-muted.png" />
+          <text class="thumb-add-txt">加张图</text>
+        </view>
+      </view>
+      <text class="up-meta" wx:if="{{uploadingCount}}">
+        还有 {{uploadingCount}} 张在传 · 传完才能发布
+      </text>
+      <text class="counter">{{description.length}}/200</text>
+    </view>
+
+    <!-- 完成条件 -->
+    <view class="field">
+      <view class="flabel">怎么算完成</view>
+      <view class="opt-row">
+        <view class="opt {{mode === 'all' ? 'on' : ''}}" data-mode="all" bindtap="setMode">
+          <text class="opt-title">所有人完成</text>
+          <text class="opt-sub">各自做完点一下</text>
+        </view>
+        <view class="opt {{mode === 'any' ? 'on' : ''}}" data-mode="any" bindtap="setMode">
+          <text class="opt-title">任一人完成</text>
+          <text class="opt-sub">谁做完都算完成</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 截止时间：两种说法 -->
+    <view class="field">
+      <view class="flabel">什么时候要</view>
+      <view class="opt-row" style="margin-bottom:16rpx">
+        <view
+          class="opt {{dueMode === 'time' ? 'on' : ''}}"
+          data-mode="time"
+          bindtap="setDueMode"
+        >
+          <text class="opt-title">某个时间点</text>
+          <text class="opt-sub">至少 2 小时后</text>
+        </view>
+        <view
+          class="opt {{dueMode === 'day' ? 'on' : ''}}"
+          data-mode="day"
+          bindtap="setDueMode"
+        >
+          <text class="opt-title">某一天</text>
+          <text class="opt-sub">当天做完就行</text>
+        </view>
+      </view>
+
+      <view class="row-line" wx:if="{{dueMode === 'time'}}" style="margin-bottom:0">
+        <picker mode="date" value="{{deadlineDate}}" start="{{deadlineMinDate}}" bindchange="onDate">
+          <view class="pick-cell">{{deadlineDate}}</view>
+        </picker>
+        <picker mode="time" value="{{deadlineTime}}" bindchange="onTime">
+          <view class="pick-cell">{{deadlineTime}}</view>
+        </picker>
+        <text class="pick-human">{{deadlineText}}</text>
+      </view>
+
+      <view class="row-line" wx:else style="margin-bottom:0">
+        <picker mode="date" value="{{dayDate}}" start="{{dayMinDate}}" bindchange="onDayDate">
+          <view class="pick-cell">{{dayDate}}</view>
+        </picker>
+        <text class="pick-human">{{dayText}} 做完就行</text>
+      </view>
+
+      <text class="pick-tip" wx:if="{{dueMode === 'time'}}">最早只能选 2 小时后</text>
+      <text class="pick-tip" wx:else>只在这一天结束前完成即可，不设提前提醒</text>
+    </view>
+
+    <!-- 提醒：只有精确时间点才有必要提前提醒 -->
+    <view class="field" wx:if="{{dueMode === 'time'}}">
+      <view class="flabel">提醒 TA</view>
+      <view class="chips chips-wrap" style="padding-bottom:0">
+        <view
+          class="chip {{remindKey === item.key ? 'on' : ''}}"
+          wx:for="{{remindOptions}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="setRemind"
+          >{{item.label}}</view
+        >
+      </view>
+    </view>
+    <view class="field" wx:else>
+      <view class="flabel">提醒 TA</view>
+      <text class="pick-tip">「某一天」的任务只在布置时通知一次，不会提前提醒</text>
+    </view>
+
+    <!-- 开始时间点：新建时都能设；编辑时只有「预约中」能改 -->
+    <view class="field" wx:if="{{!editing || taskStatus === 'scheduled'}}">
+      <view class="row-line" style="margin-bottom:0">
+        <view>
+          <text class="row-label">开始时间点</text>
+          <text class="row-sub">到点才开始，之前挂着不打扰</text>
+        </view>
+        <switch checked="{{scheduled}}" color="#FF6B4A" bindchange="toggleSchedule" />
+      </view>
+
+      <block wx:if="{{scheduled}}">
+        <view class="row-line start-row">
+          <picker mode="date" value="{{startDate}}" start="{{today}}" bindchange="onStartDate">
+            <view class="pick-cell">{{startDate}}</view>
+          </picker>
+          <picker mode="time" value="{{startTime}}" bindchange="onStartTime">
+            <view class="pick-cell">{{startTime}}</view>
+          </picker>
+          <text class="pick-human">{{startText}} 开始</text>
+        </view>
+        <view class="row-line" style="margin-bottom:0">
+          <view>
+            <text class="row-label">到点通知</text>
+            <text class="row-sub">到开始时间点给大家发条通知</text>
+          </view>
+          <switch checked="{{startNotify}}" color="#FF6B4A" bindchange="toggleStartNotify" />
+        </view>
+      </block>
+
+      <text class="pick-tip">
+        {{dueMode === 'day' ? '开始时间点要早于当天 22:00' : '开始时间点要早于截止时间'}}
+      </text>
+    </view>
+
+    <view class="actionbar-space"></view>
+  </view>
+
+  <view class="actionbar">
+    <view
+      class="btn btn-primary btn-lg {{canSubmit && !submitting && !uploadingCount ? '' : 'disabled'}}"
+      bindtap="submit"
+    >
+      {{uploadingCount ? '图片上传中…' : (editing ? (submitting ? '保存中…' : '保存修改') : (submitting ? '发布中…' : participants.length > 1 ? '发布并提醒 ' + participants.length + ' 人' : '发布并提醒 TA'))}}
+    </view>
+    <text class="hint" wx:if="{{editing}}">改完会通知已经在做的人</text>
+    <text class="hint" wx:else>发布时会请求一次消息提醒授权，拒绝也不影响使用</text>
+  </view>
+</view>

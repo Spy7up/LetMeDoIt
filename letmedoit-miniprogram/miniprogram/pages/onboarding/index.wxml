@@ -1,0 +1,54 @@
+<view class="ob" style="padding-top:{{statusBarHeight}}px">
+  <view class="ob-head">
+    <view class="ob-step">第一次来 · 只需一步</view>
+    <view class="ob-title">让别人知道是你</view>
+    <view class="ob-sub">好友派活、你完成任务时，都会显示这个头像和名字。以后随时能改。</view>
+  </view>
+
+  <form class="ob-form" bindsubmit="onSubmit">
+    <view class="ob-card">
+      <view class="ob-avatar-wrap">
+        <button class="ob-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image
+            wx:if="{{avatarUrl}}"
+            class="ob-avatar-img"
+            src="{{avatarUrl}}"
+            mode="aspectFill"
+            binderror="onAvatarError"
+          />
+          <view wx:else class="ob-avatar-default" style="{{avatarStyle}}">{{initial}}</view>
+          <view class="ob-avatar-badge">
+            <image class="ob-badge-ic" src="/images/icons/camera-white.png" />
+          </view>
+        </button>
+        <view class="ob-avatar-tip">{{uploading ? '上传中…' : '点一下，从微信头像里挑'}}</view>
+      </view>
+
+      <view class="ob-field">
+        <view class="ob-flabel">名字</view>
+        <input
+          class="ob-input"
+          name="nickname"
+          type="nickname"
+          maxlength="20"
+          value="{{nicknameInit}}"
+          placeholder="怎么称呼你"
+          placeholder-class="ob-ph"
+          bindinput="onNickname"
+          bindblur="onNickname"
+          bindconfirm="onNickname"
+          bindnicknamereview="onNicknameReview"
+        />
+        <text class="ob-counter">{{count}}/20</text>
+      </view>
+      <view class="ob-note">点输入框，键盘上方可以直接选微信昵称</view>
+    </view>
+
+    <view class="ob-foot">
+      <button class="btn btn-primary btn-lg {{saving ? 'disabled' : ''}}" form-type="submit" disabled="{{saving || uploading}}">
+        {{saving ? '保存中…' : (uploading ? '头像上传中…' : '就这么定')}}
+      </button>
+      <view class="ob-skip" bindtap="skip">先跳过，用默认的头像和名字</view>
+    </view>
+  </form>
+</view>
