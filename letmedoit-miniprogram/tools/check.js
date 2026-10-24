@@ -224,6 +224,68 @@ files
   })
 ok('标签平衡检查完成')
 
+/* ---------- 9. WXML 引用的变量必须在 data 里声明 ---------- */
+
+console.log('\n[10] WXML 变量')
+// 抓这类 bug：wxml 写 {{barMode}}，但 js 的 data 里只有 task.barMode
+// 表现是「按钮/区块静默不显示」，肉眼极难发现（详情页底部操作条就这么空过一段时间）
+const SKIP_VARS = new Set(['item', 'index', 'idx', 'i', 'j', 'true', 'false', 'null', 'undefined', 'Math'])
+const BUILTIN = new Set(['length', 'slice', 'concat', 'indexOf', 'toFixed', 'split', 'join', 'substr', 'trim'])
+
+function dataKeys(js) {
+  const m = /\bdata\s*:\s*\{/.exec(js)
+  if (!m) return new Set()
+  let i = m.index + m[0].length - 1
+  const start = i
+  let depth = 0
+  while (i < js.length) {
+    if (js[i] === '{') depth++
+    else if (js[i] === '}') {
+      depth--
+      if (depth === 0) break
+    }
+    i++
+  }
+  const keys = new Set()
+  const re = /\n\s{2,6}([A-Za-z_$][\w$]*)\s*:/g
+  let k
+  const block = js.slice(start, i)
+  while ((k = re.exec(block))) keys.add(k[1])
+  return keys
+}
+
+let varProblems = 0
+files
+  .filter((f) => f.endsWith('.wxml') && f.indexOf(path.join(ROOT, 'pages')) === 0)
+  .forEach((f) => {
+    const jsPath = f.replace(/\.wxml$/, '.js')
+    if (!fs.existsSync(jsPath)) return
+    const wxml = fs.readFileSync(f, 'utf8')
+    const allowed = dataKeys(fs.readFileSync(jsPath, 'utf8'))
+    // wx:for-item / wx:for-index 定义的局部变量
+    const local = wxml.match(/wx:for-(?:item|index)="[\w$]+"/g) || []
+    local.forEach((s) => allowed.add(/="([\w$]+)"/.exec(s)[1]))
+    BUILTIN.forEach((b) => allowed.add(b))
+
+    const roots = new Set()
+    ;(wxml.match(/\{\{[\s\S]*?\}\}/g) || []).forEach((raw) => {
+      // 去掉字符串字面量，再把 a.b.c 这样的链取第一段
+      const expr = raw.replace(/'[^']*'/g, ' ').replace(/"[^"]*"/g, ' ')
+      const chain = /[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*/g
+      let c
+      while ((c = chain.exec(expr))) {
+        roots.add(c[0].split('.')[0].trim())
+      }
+    })
+
+    const bad = [...roots].filter((n) => !allowed.has(n) && !SKIP_VARS.has(n))
+    if (bad.length) {
+      fail(path.relative(ROOT, f) + ' 用了未声明的变量：' + bad.join(', '))
+      varProblems++
+    }
+  })
+if (!varProblems) ok('变量声明检查完成')
+
 /* ---------- 汇总 ---------- */
 
 console.log('\n' + (errors === 0 ? '全部通过' : errors + ' 个错误') + (warns ? '，' + warns + ' 个警告' : ''))

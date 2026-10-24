@@ -1,6 +1,7 @@
 const taskApi = require('../../../services/task')
 const friendApi = require('../../../services/friend')
 const avatar = require('../../../utils/avatar')
+const entry = require('../../../utils/entry')
 const { presentUser } = require('../../../utils/present')
 
 Page({
@@ -23,12 +24,7 @@ Page({
   },
 
   async bootstrap() {
-    try {
-      await getApp().ensureLogin()
-    } catch (e) {
-      getApp().redirectToLogin()
-      return
-    }
+    if (await entry.ensureEntry('pages/mine/index/index')) return
     this.ready = true
     this.load()
   },

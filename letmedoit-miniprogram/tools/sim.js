@@ -21,7 +21,7 @@ const contract = require('./contract-server')
 /* ---------------- 环境桩 ---------------- */
 
 const storage = {}
-const calls = { toast: [], nav: [], modal: [], clipboard: [], upload: [] }
+const calls = { toast: [], nav: [], tab: [], modal: [], clipboard: [], upload: [] }
 let appInstance = null
 let lastPageConfig = null
 let lastHeaders = {}
@@ -116,11 +116,16 @@ global.wx = {
     if (o.events) o.__events = o.events
   },
   redirectTo: (o) => calls.nav.push(o.url),
-  switchTab: (o) => calls.nav.push(o.url),
+  // tabBar 页只能 switchTab：单独记一份，用来断言「没误用 redirectTo」
+  switchTab: (o) => {
+    calls.nav.push(o.url)
+    calls.tab.push(o.url)
+  },
   reLaunch: (o) => calls.nav.push(o.url),
   navigateBack: () => calls.nav.push('back'),
   stopPullDownRefresh: () => {},
   vibrateShort: () => {},
+  setNavigationBarTitle: () => {},
   chooseMedia: (o) =>
     o.success({ tempFiles: [{ tempFilePath: 'wxfile://tmp_a.jpg' }, { tempFilePath: 'wxfile://tmp_b.jpg' }] }),
   previewImage: () => {},
@@ -319,6 +324,21 @@ async function run() {
   check(detail.data.task.barMode !== undefined, '操作条模式：' + detail.data.task.barMode)
   check(detail.data.task.statusClass.indexOf('t-') === 0, '状态样式类 ' + detail.data.task.statusClass)
 
+  // 分享卡片落到「接收页」而不是详情页：点开的人只需要接受/拒绝
+  const detailShare = detail.onShareAppMessage()
+  check(
+    detailShare.path.indexOf('/pages/tasks/receive/index') === 0,
+    '详情页转发去接收页：' + detailShare.path
+  )
+
+  // 接收页：简洁版，只有四件事 + 一组按钮
+  const recv = loadPage('pages/tasks/receive/index')
+  recv.onLoad({ id: anyTask.id })
+  await wait(400)
+  check(!!recv.data.task && !!recv.data.task.title, '接收页拿到任务：' + (recv.data.task && recv.data.task.title))
+  check(!!recv.data.scene && !!recv.data.hint, '接收页场景 ' + recv.data.scene + ' / ' + recv.data.hint)
+  check(!recv.data.error, '接收页没有报错：' + JSON.stringify(recv.data.error))
+
   console.log('\n[7] 完成页 + 提交完成')
   const completeApi = loadPage('pages/tasks/complete/index')
   completeApi.onLoad({ id: anyTask.id })
@@ -411,7 +431,23 @@ async function run() {
   console.log('    提交截止：' + create.data.deadlineDate + ' ' + create.data.deadlineTime)
   await create.submit()
   await wait(700)
-  check(calls.toast.some((t) => t.indexOf('已交给') >= 0), '发布成功：' + JSON.stringify(calls.toast.slice(-1)))
+  // 发布成功后不再 toast 直接返回，而是弹「告诉 TA」半屏（转发卡片比订阅消息更靠谱）
+  check(
+    !!create.data.published && !!create.data.published.taskId,
+    '发布成功：弹出「告诉 TA」半屏 taskId=' + (create.data.published && create.data.published.taskId)
+  )
+  // 分享卡片：标题带任务名和截止时间，path 直达这条任务的详情页
+  const shareCard = create.onShareAppMessage()
+  check(
+    /换一下客厅的灯泡/.test(shareCard.title) && /前|做完/.test(shareCard.title),
+    '分享卡片标题：' + shareCard.title
+  )
+  check(
+    shareCard.path.indexOf('/pages/tasks/receive/index?id=' + create.data.published.taskId) >= 0,
+    '分享直达接收页：' + shareCard.path
+  )
+  // 没传图时必须给默认封面，否则微信用页面截图，白底一片
+  check(shareCard.imageUrl.indexOf('task-cover') > 0, '无附图时用默认分享封面：' + shareCard.imageUrl)
 
   // 「什么时候要」两种说法（重新开一个创建页实例，避免上次 submitting 还没复位）
   const pad2 = (n) => (n < 10 ? '0' + n : '' + n)
@@ -833,6 +869,19 @@ async function run() {
     '跳过引导回到任务首页'
   )
 
+  // 从分享卡片进来的首登：引导完必须回到原来那一页（非 tab、带参数），
+  // 否则用户点开别人的任务卡、登录完却掉在首页，还得自己找回来
+  const obShare = loadPage('pages/onboarding/index')
+  await obShare.onLoad({ next: encodeURIComponent('pages/tasks/receive/index?id=9') })
+  await wait(150)
+  const navBeforeShare = calls.nav.length
+  obShare.skip()
+  await wait(700)
+  check(
+    calls.nav.slice(navBeforeShare).indexOf('/pages/tasks/receive/index?id=9') >= 0,
+    '引导完回到分享进来的那一页（带参数）'
+  )
+
   // 「就这么定」：昵称落库（走 form 提交）
   const obSubmit = loadPage('pages/onboarding/index')
   await obSubmit.onLoad({ next: encodeURIComponent('pages/tasks/index/index') })
@@ -869,10 +918,118 @@ async function run() {
   friendsPage.onLoad({})
   await wait(400)
   check(friendsPage.data.inviteCode === 'K7M2QX', '好友页直接显示邀请码 ' + friendsPage.data.inviteCode)
+  // 分享路径现在指向「加好友页」，用 code 传参（不再是登录页的 invite=）
   check(
-    !!friendsPage.data.sharePath && friendsPage.data.sharePath.indexOf('invite=') > 0,
+    !!friendsPage.data.sharePath && friendsPage.data.sharePath.indexOf('code=K7M2QX') > 0,
     '分享路径就绪 ' + friendsPage.data.sharePath
   )
+
+  // 好友详情：URL 里只有名字装不下头像，进页面必须按 uid 从好友列表补回来
+  const wang = friendsPage.data.friends.filter((f) => String(f.userId) === '3')[0]
+  check(!!wang && !!wang.avatarUrl, '列表里有云头像的好友：' + (wang && wang.avatarUrl))
+  const friendDetail = loadPage('pages/friends/detail/index')
+  friendDetail.onLoad({
+    uid: '3',
+    fid: wang ? wang.id : '',
+    name: encodeURIComponent('小王'),
+    count: 1,
+  })
+  await wait(500)
+  const fdFriend = friendDetail.data.friend || {}
+  check(
+    fdFriend.avatarUrl === 'https://cdn.test/avatar/wang.png',
+    '详情页补上了云头像 ' + fdFriend.avatarUrl
+  )
+  check(!!fdFriend.initial && !!fdFriend.avatarStyle, '文字头像兜底仍在')
+
+  // 加好友页：别人点开显示「谁邀请你」，自己点开直接回好友列表
+  const invPage = loadPage('pages/friends/invite/index')
+  invPage.onLoad({ code: 'M3P8LA' }) // 妈妈
+  await wait(400)
+  check(
+    !!invPage.data.preview && invPage.data.preview.nickname === '妈妈',
+    '加好友页显示邀请人：' + (invPage.data.preview && invPage.data.preview.nickname)
+  )
+  check(invPage.data.preview && invPage.data.preview.friendFlag === true, '已是好友时 friendFlag=true')
+
+  const selfInv = loadPage('pages/friends/invite/index')
+  const navBeforeInv = calls.nav.length
+  const tabBeforeInv = calls.tab.length
+  selfInv.onLoad({ code: 'K7M2QX' }) // 自己的邀请码
+  await wait(400)
+  check(
+    calls.nav.slice(navBeforeInv).indexOf('/pages/friends/index/index') >= 0,
+    '自己点自己的卡片 → 回好友列表'
+  )
+  // 好友列表是 tabBar 页，必须 switchTab；redirectTo 会静默失败（表现为停在「加载中…」）
+  check(
+    calls.tab.slice(tabBeforeInv).indexOf('/pages/friends/index/index') >= 0 &&
+      selfInv.data.loading === false,
+    '自己点自己的卡片用 switchTab，且不会卡在加载中'
+  )
+
+  // 陌生人点开卡片 → 加好友 → 按钮切成「去看看好友」并真的跳过去
+  const stInvite = server.getState()
+  if (!stInvite.members.some((m) => m.memberId === 98)) {
+    stInvite.members.push({
+      memberId: 98,
+      nickname: '隔壁老王',
+      avatar: '',
+      inviteCode: 'PP1Q2W',
+      gender: 0,
+    })
+  }
+  const invAdd = loadPage('pages/friends/invite/index')
+  invAdd.onLoad({ code: 'PP1Q2W' })
+  await wait(300)
+  check(
+    !!invAdd.data.preview && invAdd.data.preview.friendFlag === false,
+    '陌生人卡片先显示「加为好友」'
+  )
+  const tabBeforeAdd = calls.tab.length
+  await invAdd.onAdd()
+  await wait(200)
+  check(
+    invAdd.data.joined === true && invAdd.data.preview.friendFlag === true,
+    '加完按钮切成「去看看好友」（不再绑 onAdd，避免点了没反应）'
+  )
+  await wait(1000)
+  check(
+    calls.tab.slice(tabBeforeAdd).indexOf('/pages/friends/index/index') >= 0,
+    '加完自动进好友列表'
+  )
+  // 刚加的人已经进了好友关系，好友页要重新拉一次，否则后面的相对断言会算错
+  await friendsPage.load()
+
+  // 分享卡片 + 从来没登录过：必须先引导登录 + 首登资料，再回到原页面（含参数）
+  const savedToken = wx.getStorageSync('lmd_app_token')
+  ;[
+    { base: 'pages/tasks/receive/index', options: { id: '1' } },
+    { base: 'pages/friends/invite/index', options: { code: 'M3P8LA' } },
+  ].forEach((probe) => {
+    wx.removeStorageSync('lmd_app_token')
+    const navBeforeGate = calls.nav.length
+    const gatePage = loadPage(probe.base)
+    gatePage.onLoad(probe.options)
+    const jumped = calls.nav.slice(navBeforeGate)[0] || ''
+    const back = decodeURIComponent(jumped)
+    const key = Object.keys(probe.options)[0]
+    // 登录完成后要跳回「同一页 + 同一参数」，少一个参数就等于换了个页面
+    const expect = probe.base + '?' + key + '=' + probe.options[key]
+    check(
+      jumped.indexOf('/pages/launch/index?redirect=') === 0 && back.indexOf(expect) > 0,
+      '没登录过先引导登录（' + probe.base + '）：' + jumped.slice(0, 64)
+    )
+  })
+  wx.setStorageSync('lmd_app_token', savedToken)
+
+  // 好友分享：指向加好友页 + 薄荷绿封面
+  const friendShare = friendsPage.onShareAppMessage()
+  check(
+    friendShare.path.indexOf('/pages/friends/invite/index?code=') === 0,
+    '好友分享去加好友页：' + friendShare.path
+  )
+  check(friendShare.imageUrl.indexOf('friend-cover') > 0, '好友分享用专属封面')
 
   friendsPage.copyCode()
   check(calls.clipboard.indexOf('K7M2QX') >= 0, '复制按钮把邀请码写进剪贴板')

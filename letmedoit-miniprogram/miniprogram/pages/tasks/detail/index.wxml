@@ -24,12 +24,6 @@
       <view class="hero">
         <view class="hero-head">
           <text class="tag {{task.statusClass}}">{{task.statusLabel}}</text>
-          <view class="hero-ops">
-            <view wx:if="{{task.canEdit}}" class="hero-edit" bindtap="goEdit">编辑</view>
-            <view wx:if="{{task.canCancel}}" class="hero-edit hero-cancel" bindtap="confirmCancel">
-              撤回
-            </view>
-          </view>
         </view>
         <text class="hero-title">{{task.title}}</text>
         <view class="byline">
@@ -102,6 +96,10 @@
       <view class="block">
         <view class="blabel">
           <text>参与的人 · {{task.totalCount}}</text>
+          <view class="blabel-ops">
+            <text wx:if="{{task.canRemind}}" class="bl-op" bindtap="onRemind">催一下</text>
+            <text wx:if="{{task.canAddParticipant}}" class="bl-op" bindtap="goAdd">加人</text>
+          </view>
         </view>
         <view
           class="p-row {{item.shotCount ? 'p-row-rich' : ''}}"
@@ -138,6 +136,12 @@
         </view>
       </view>
 
+      <!-- 被转发到群里、点进来的路人：只读，给一条明确的解释 -->
+      <view class="stranger-note" wx:if="{{!task.isCreator && !task.me}}">
+        <text class="sn-title">这不是交给你的任务</text>
+        <text class="sn-sub">你可以看看内容，但不能接受或拒绝</text>
+      </view>
+
       <!-- 进展 -->
       <view class="block" wx:if="{{task.events.length}}">
         <view class="blabel">进展</view>
@@ -150,44 +154,51 @@
         </view>
       </view>
 
-      <view class="actionbar-space"></view>
+      <view class="actionbar-float-space"></view>
     </block>
   </view>
 
-  <!-- 底部操作 -->
-  <view class="actionbar" wx:if="{{task && barMode !== 'none'}}">
-    <view class="actionbar-row">
-      <block wx:if="{{barMode === 'accept'}}">
-        <view class="btn btn-ghost" style="flex:0 0 34%" bindtap="onReject">拒绝</view>
-        <view class="btn btn-primary" bindtap="onAccept">
-          {{acting === 'accept' ? '处理中…' : '接受'}}
-        </view>
-      </block>
+  <!-- 底部操作：悬浮毛玻璃胶囊，不贴边、不遮挡内容。
+       注意 barMode 挂在 task 上（withBar 算出来的），不是页面 data 的顶层字段。 -->
+  <view class="actionbar-float" wx:if="{{task.barMode && task.barMode !== 'none'}}">
+    <!-- 发起人：分享 / 编辑 / 撤回（催办与加人在参与者区块里） -->
+    <block wx:if="{{task.barMode === 'creator'}}">
+      <button class="fbtn fbtn-share" open-type="share">
+        <image class="fbtn-icon" src="/images/icons/share-brand.png" />
+        <text>分享</text>
+      </button>
+      <view wx:if="{{task.canEdit}}" class="fbtn fbtn-edit" bindtap="goEdit">
+        <image class="fbtn-icon" src="/images/icons/edit-violet.png" />
+        <text>编辑</text>
+      </view>
+      <view wx:if="{{task.canCancel}}" class="fbtn fbtn-danger" bindtap="confirmCancel">
+        <image class="fbtn-icon" src="/images/icons/trash-danger.png" />
+        <text>撤回</text>
+      </view>
+    </block>
 
-      <block wx:elif="{{barMode === 'complete'}}">
-        <view wx:if="{{task.canRemind}}" class="btn btn-ghost" style="flex:0 0 34%" bindtap="onRemind">
-          催一下
-        </view>
-        <view class="btn btn-primary" bindtap="goComplete">完成我这份</view>
-      </block>
+    <!-- 执行者 · 待接受 -->
+    <block wx:elif="{{task.barMode === 'accept'}}">
+      <view class="fbtn fbtn-ghost" style="flex:0 0 40%" bindtap="onReject">
+        <image class="fbtn-icon" src="/images/icons/close-ink.png" />
+        <text>拒绝</text>
+      </view>
+      <view class="fbtn fbtn-primary" bindtap="onAccept">
+        <image class="fbtn-icon" src="/images/icons/check-white.png" />
+        <text>{{acting === 'accept' ? '处理中…' : '接受'}}</text>
+      </view>
+    </block>
 
-      <block wx:elif="{{barMode === 'creator'}}">
-        <view
-          wx:if="{{task.canAddParticipant}}"
-          class="btn btn-ghost"
-          style="flex:0 0 34%"
-          bindtap="goAdd"
-        >
-          加人
-        </view>
-        <view class="btn btn-primary" bindtap="onRemind">催一下</view>
-      </block>
-
-      <!-- 预约中：还不能催，只能继续加人 -->
-      <block wx:elif="{{barMode === 'addonly'}}">
-        <view class="btn btn-primary" bindtap="goAdd">再加几个人</view>
-      </block>
-    </view>
-    <text class="hint" wx:if="{{barMode === 'complete'}}">只标记你自己这份，其他人不受影响</text>
+    <!-- 执行者 · 进行中 -->
+    <block wx:elif="{{task.barMode === 'complete'}}">
+      <view class="fbtn fbtn-mint" bindtap="goComplete">
+        <image class="fbtn-icon" src="/images/icons/check-white.png" />
+        <text>完成我这份</text>
+      </view>
+      <view wx:if="{{task.canRemind}}" class="fbtn fbtn-amber" bindtap="onRemind">
+        <image class="fbtn-icon" src="/images/icons/bell-white.png" />
+        <text>{{acting === 'remind' ? '已提醒' : '催一下'}}</text>
+      </view>
+    </block>
   </view>
 </view>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分享封面 + 加好友页</title>
+<style>
+  :root {
+    --brand: #FF6B4A;
+    --brand-ink: #D64C28;
+    --brand-soft: #FFEDE7;
+    --mint: #17A67C;
+    --mint-soft: #E4F6EF;
+    --violet: #6B5BD2;
+    --violet-soft: #EFECFC;
+    --danger: #D64545;
+    --danger-soft: #FCEBEB;
+    --ink1: #1E1B18;
+    --ink2: #6B625B;
+    --ink3: #A69C93;
+    --line: #EFE9E3;
+    --line2: #E6DFD8;
+    --bg: #F7F4F1;
+    --wx-bg: #EDEDED;
+    --wx-green: #95EC69;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: #EDE8E3; color: var(--ink1);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  header.page-head { margin-bottom: 44px; }
+  .kicker {
+    display: inline-block; padding: 6px 12px; border-radius: 999px;
+    background: var(--brand-soft); color: var(--brand-ink);
+    font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  }
+  header.page-head h1 { margin: 14px 0 8px; font-size: 26px; font-weight: 700; letter-spacing: -.3px; }
+  header.page-head p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--ink2); max-width: 840px; }
+
+  section { margin-bottom: 56px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .sec-no {
+    font-size: 12px; font-weight: 700; color: #fff; background: var(--ink1);
+    width: 20px; height: 20px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; transform: translateY(-2px);
+  }
+  .sec-head h2 { margin: 0; font-size: 19px; font-weight: 700; }
+  .sec-sub { margin: 0 0 22px; font-size: 13.5px; line-height: 1.7; color: var(--ink2); max-width: 860px; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: center; }
+  .col { flex: 0 1 375px; max-width: 375px; }
+  .col figcaption { margin-top: 12px; font-size: 12.5px; line-height: 1.6; color: var(--ink2); text-align: center; }
+  .cap-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; margin-right: 6px; vertical-align: 1px;
+  }
+  .cap-good { background: var(--mint-soft); color: var(--mint); }
+  .cap-new { background: var(--brand-soft); color: var(--brand-ink); }
+  .cap-info { background: var(--violet-soft); color: var(--violet); }
+
+  /* ---------- 手机框 ---------- */
+  .phone {
+    position: relative; width: 375px; height: 600px; background: var(--bg);
+    border-radius: 28px; overflow: hidden;
+    box-shadow: 0 18px 40px -18px rgba(60,40,25,.28), 0 2px 8px rgba(60,40,25,.08);
+    border: 1px solid rgba(0,0,0,.05);
+  }
+  .phone.wx { background: var(--wx-bg); }
+  .statusbar {
+    height: 30px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font-size: 10.5px; font-weight: 600;
+  }
+  .statusbar .dots { display: flex; gap: 3px; align-items: center; }
+  .statusbar .dots i { display: block; width: 3px; height: 3px; border-radius: 50%; background: var(--ink1); }
+  .nav {
+    display: flex; align-items: center; gap: 8px; padding: 4px 16px 12px;
+    font-size: 15px; font-weight: 600;
+  }
+  .nav .back {
+    width: 16px; height: 16px; border-left: 2px solid var(--ink1);
+    border-bottom: 2px solid var(--ink1); transform: rotate(45deg);
+    border-radius: 1px; opacity: .85;
+  }
+  .screen { padding: 0 16px; height: calc(100% - 66px); overflow: hidden; }
+
+  /* ---------- 微信聊天 ---------- */
+  .wx-top {
+    display: flex; align-items: center; gap: 10px; padding: 6px 14px 12px;
+    border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+  .wx-name { font-size: 13.5px; font-weight: 600; }
+  .wx-chat { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .wx-time { text-align: center; font-size: 10px; color: #9A9A9A; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; }
+  .msg.me { flex-direction: row-reverse; }
+  .msg-av {
+    width: 32px; height: 32px; border-radius: 5px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600;
+  }
+  .av-a { background: #FFE0D4; color: #C0492A; }
+  .av-b { background: #DDEBFB; color: #3C6E9E; }
+  .bubble {
+    max-width: 190px; padding: 9px 11px; border-radius: 6px;
+    background: #fff; font-size: 13px; line-height: 1.5;
+  }
+  .msg.me .bubble { background: var(--wx-green); }
+
+  /* 小程序卡片 */
+  .wxcard {
+    width: 232px; background: #fff; border-radius: 6px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .wxcard-cover { height: 130px; position: relative; overflow: hidden; }
+  .wxcard-cover svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .wxcard-body { padding: 10px 12px 11px; }
+  .wxcard-title {
+    font-size: 14px; font-weight: 600; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .wxcard-meta {
+    margin-top: 6px; display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #9A9A9A;
+  }
+  .mini-logo {
+    width: 13px; height: 13px; border-radius: 3px; background: var(--brand);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 8px; font-weight: 700;
+  }
+
+  /* 封面底色 */
+  .cover-task {
+    background:
+      radial-gradient(circle at 88% 6%, rgba(38,200,158,.55), rgba(38,200,158,0) 62%),
+      radial-gradient(circle at 6% 98%, rgba(126,140,255,.4), rgba(126,140,255,0) 62%),
+      linear-gradient(128deg, #FF6435, #FF8F57 50%, #FFB887);
+  }
+  .cover-friend {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(255,255,255,.22), rgba(255,255,255,0) 60%),
+      radial-gradient(circle at 90% 95%, rgba(14,118,88,.5), rgba(14,118,88,0) 60%),
+      linear-gradient(122deg, #2EC093, #1BAE83 45%, #0E8E68);
+  }
+  /* 有附图时用任务图本身（这里用渐变占位） */
+  .cover-photo {
+    background:
+      linear-gradient(135deg, rgba(0,0,0,.12), rgba(0,0,0,0) 45%),
+      linear-gradient(160deg, #CFE3F5, #9EC3E4 48%, #6E9CC4);
+  }
+
+  /* ---------- 加好友页 ---------- */
+  .inv { padding: 0 4px; }
+  .inv-head {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 44px 0 24px;
+  }
+  .inv-av {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700;
+  }
+  .inv-from { margin-top: 4px; font-size: 17px; font-weight: 700; text-align: center; }
+  .inv-hint { font-size: 12px; color: var(--ink3); text-align: center; line-height: 1.55; padding: 0 12px; }
+  .inv-card {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  }
+  .inv-card-k { font-size: 11.5px; color: var(--ink3); }
+  .inv-card-v {
+    margin-left: auto; font-size: 19px; font-weight: 700;
+    letter-spacing: 3px; color: var(--brand-ink);
+  }
+  .inv-about {
+    margin-top: 20px; display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+  }
+  .inv-about-t { font-size: 12.5px; font-weight: 600; color: var(--ink2); text-align: center; }
+  .inv-about-s { font-size: 11px; color: var(--ink3); text-align: center; }
+
+  /* 好友列表（自己打开时的落地） */
+  .list-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 13px; background: #fff; border-radius: 14px;
+    border: 1px solid var(--line); margin-bottom: 8px;
+  }
+  .list-name { font-size: 13.5px; font-weight: 500; }
+  .list-sub { font-size: 11px; color: var(--ink3); }
+
+  /* ---------- 悬浮按钮 ---------- */
+  .actionbar-float {
+    position: absolute; left: 14px; right: 14px; bottom: 14px;
+    padding: 7px; border-radius: 22px;
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid rgba(255,255,255,.72);
+    box-shadow: 0 16px 40px -8px rgba(60,40,25,.22);
+    display: flex; gap: 7px;
+  }
+  .fbtn {
+    flex: 1; height: 46px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    font-size: 14px; font-weight: 600; line-height: 1;
+    border: none; margin: 0; padding: 0; font-family: inherit;
+  }
+  .fbtn-icon { width: 16px; height: 16px; }
+  .fbtn-primary {
+    background: linear-gradient(135deg, #ff7a58, #ff5a34); color: #fff;
+    box-shadow: 0 6px 16px -6px rgba(255,107,74,.9);
+  }
+  .fbtn-ghost { background: #f1ede8; color: var(--ink2); }
+
+  /* ---------- 说明 ---------- */
+  .note {
+    margin-top: 22px; background: #fff; border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .note h3 { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; }
+  .note p { margin: 0 0 10px; font-size: 13px; line-height: 1.75; color: var(--ink2); }
+  .note p:last-child { margin-bottom: 0; }
+  code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
+    background: #F4EFEA; padding: 1.5px 5px; border-radius: 4px; color: #A34226;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-head">
+    <span class="kicker">原型 · 分享封面 + 加好友页</span>
+    <h1>转发出去的两张脸</h1>
+    <p>
+      分享卡片在聊天里只有 100×80，能不能点开几乎全看那一块封面。
+      所以做了两张：<strong>任务卡片</strong>用橘色 + 勾选框（有任务附图就直接用图），
+      <strong>加好友卡片</strong>用薄荷绿 + 双圆环加号，一眼分得清是哪件事。
+    </p>
+  </header>
+
+  <!-- ========== 1. 任务分享卡片 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><h2>任务卡片：没图用默认封面，有图用第一张</h2></div>
+    <p class="sec-sub">
+      以前 <code>imageUrl</code> 留空，微信会拿页面截图当封面——白底一片，信息全无。
+      现在没有附图就用设计好的默认封面。
+    </p>
+
+    <div class="grid">
+      <div class="col">
+        <div class="phone wx">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="wx-top"><span class="back" style="border-color:#191919"></span><span class="wx-name">阿明</span></div>
+          <div class="wx-chat">
+            <div class="wx-time">今天 15:02</div>
+            <div class="msg">
+              <div class="msg-av av-a">晨</div>
+              <div class="wxcard">
+                <div class="wxcard-cover cover-task">
+                  <svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMid slice">
+                    <rect x="70" y="95" width="92" height="92" rx="15" fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="7.6"/>
+                    <path d="M94 142 L110 160 L142 120" fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="7.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <line x1="240" y1="243" x2="312" y2="243" stroke="#fff" stroke-opacity=".42" stroke-width="5.6" stroke-linecap="round"/>
+                    <line x1="240" y1="274" x2="288" y2="274" stroke="#fff" stroke-opacity=".3" stroke-width="5.6" stroke-linecap="round"/>
+                    <line x1="240" y1="304" x2="264" y2="304" stroke="#fff" stroke-opacity=".2" stroke-width="5.6" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="wxcard-body">
+                  <div class="wxcard-title">阿晨 让你做：把阳台的衣服收了 · 今天 21:00 前</div>
+                  <div class="wxcard-meta"><span class="mini-logo">让</span><span>让我做 · 小程序</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-new">默认封面</span>勾选框 + 三条待办线，暗示"这是个待办"</figcaption>
+      </div>
+
+      <div class="col">
+        <div class="phone wx">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="wx-top"><span class="back" style="border-color:#191919"></span><span class="wx-name">阿明</span></div>
+          <div class="wx-chat">
+            <div class="wx-time">今天 15:02</div>
+            <div class="msg">
+              <div class="msg-av av-b">明</div>
+              <div class="wxcard">
+                <div class="wxcard-cover cover-photo">
+                  <svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMid slice">
+                    <rect x="120" y="86" width="160" height="148" rx="10" fill="#fff" fill-opacity=".55"/>
+                    <rect x="140" y="108" width="120" height="12" rx="6" fill="#3C6E9E" fill-opacity=".35"/>
+                    <rect x="140" y="132" width="88" height="12" rx="6" fill="#3C6E9E" fill-opacity=".28"/>
+                    <circle cx="150" cy="180" r="16" fill="#3C6E9E" fill-opacity=".25"/>
+                  </svg>
+                </div>
+                <div class="wxcard-body">
+                  <div class="wxcard-title">阿明 让你做：把阳台的衣服收了 · 今天 21:00 前</div>
+                  <div class="wxcard-meta"><span class="mini-logo">让</span><span>让我做 · 小程序</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="msg me">
+              <div class="msg-av av-a">晨</div>
+              <div class="bubble">图里那两筐，收完叠一下</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-good">有附图</span>直接用任务的第一张图，比任何设计图都贴切</figcaption>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 2. 加好友 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><h2>加好友：独立页面，先看清是谁再决定</h2></div>
+    <p class="sec-sub">
+      以前分享走的是登录页（<code>?invite=码</code>），对方点开先看到"请先登录"，加好友的过程被藏在登录里。
+      现在有独立页面：<strong>谁邀请你 → 邀请码 → 加为好友</strong>，三步看完。自己点自己的卡片则直接回好友列表。
+    </p>
+
+    <div class="grid">
+      <div class="col">
+        <div class="phone wx">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="wx-top"><span class="back" style="border-color:#191919"></span><span class="wx-name">妈妈</span></div>
+          <div class="wx-chat">
+            <div class="wx-time">今天 16:20</div>
+            <div class="msg">
+              <div class="msg-av av-a">妈</div>
+              <div class="wxcard">
+                <div class="wxcard-cover cover-friend">
+                  <svg viewBox="0 0 400 320" preserveAspectRatio="xMidYMid slice">
+                    <circle cx="152" cy="198" r="54" fill="none" stroke="#fff" stroke-opacity=".62" stroke-width="6.8"/>
+                    <circle cx="228" cy="186" r="54" fill="none" stroke="#fff" stroke-opacity=".44" stroke-width="6.8"/>
+                    <line x1="316" y1="64" x2="316" y2="109" stroke="#fff" stroke-opacity=".85" stroke-width="7.2" stroke-linecap="round"/>
+                    <line x1="288" y1="86" x2="344" y2="86" stroke="#fff" stroke-opacity=".85" stroke-width="7.2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="wxcard-body">
+                  <div class="wxcard-title">妈妈 想加你为好友，一起用「让我做」</div>
+                  <div class="wxcard-meta"><span class="mini-logo">让</span><span>让我做 · 小程序</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="wx-time">下午 4:20</div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-new">卡片</span>薄荷绿和任务卡片的橘色分得开，双圆环 + 加号 = 加好友</figcaption>
+      </div>
+
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>妈妈 想加你</span></div>
+          <div class="screen">
+            <div class="inv">
+              <div class="inv-head">
+                <div class="inv-av av-a">妈</div>
+                <div class="inv-from">妈妈 想加你为好友</div>
+                <div class="inv-hint">加上之后，可以互相派活、互相提醒</div>
+              </div>
+
+              <div class="inv-card">
+                <span class="inv-card-k">邀请码</span>
+                <span class="inv-card-v">M3P8LA</span>
+              </div>
+
+              <div class="inv-about">
+                <div class="inv-about-t">「让我做」是给家人朋友派小事的小程序</div>
+                <div class="inv-about-s">说一遍就够，做完自动通知你</div>
+              </div>
+            </div>
+          </div>
+          <div class="actionbar-float">
+            <div class="fbtn fbtn-primary">
+              <svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              <span>加为好友</span>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-good">加好友页</span>一个动作，按钮悬浮在底部</figcaption>
+      </div>
+
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>好友</span></div>
+          <div class="screen">
+            <div style="padding:16px 4px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+                <span style="font-size:11px;font-weight:700;color:var(--ink3)">我的好友</span>
+                <span style="font-size:11px;color:var(--ink3)">· 3</span>
+              </div>
+              <div class="list-row">
+                <div class="inv-av av-a" style="width:32px;height:32px;font-size:12px">妈</div>
+                <div style="flex:1">
+                  <div class="list-name">老妈</div>
+                  <div class="list-sub">2 个任务进行中</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="inv-av av-b" style="width:32px;height:32px;font-size:12px">明</div>
+                <div style="flex:1">
+                  <div class="list-name">阿明</div>
+                  <div class="list-sub">上次互动 昨天</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="inv-av" style="width:32px;height:32px;font-size:12px;background:#DFEEDB;color:#4C7A45">红</div>
+                <div style="flex:1">
+                  <div class="list-name">小红</div>
+                  <div class="list-sub">上次互动 3 天前</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-info">兜底</span>自己点自己的卡片、或加完好友后，都落到这里</figcaption>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>为什么加好友要单独一页</h3>
+      <p>
+        原来的路径是 <code>/pages/launch/index?invite=码</code>。问题有两个：
+      </p>
+      <p>
+        <strong>1. 已经登录的人会莫名看到登录页</strong>（或闪一下），而且加好友是"登录的副作用"——
+        用户根本不知道自己加了谁。
+      </p>
+      <p>
+        <strong>2. 对方不知道你是谁。</strong>登录页只能显示"邀请码 XXX"，看不到邀请人的头像和昵称，
+        家庭场景里这很要命：老人收到一条链接，不知道该不该点。
+      </p>
+      <p>
+        新页面先请求一个预览接口拿到邀请人信息（只返回昵称、头像和两个判定位，
+        不暴露对方的好友数和任务数），再让用户决定。
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== 3. 封面怎么做的 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><h2>封面是代码画的</h2></div>
+    <div class="note" style="margin-top:0">
+      <p>
+        项目里没有设计源文件，所以用 <code>tools/make-covers.js</code> 直接生成 PNG（400×320，微信推荐 5:4）：
+        线性渐变 + 径向光斑 + 距离场画的圆角框/圆环，配色直接复用主题令牌，以后换主题重跑一次就行。
+      </p>
+      <p>
+        <strong>任务封面</strong>：橘色渐变（和首页 banner 同一套）+ 圆角勾选框 + 三条渐隐横线。
+        一开始画的是圆环，看小图像只眼睛，换成勾选框后一眼就是"待办"。
+      </p>
+      <p>
+        <strong>加好友封面</strong>：薄荷绿渐变 + 两个交叠圆环 + 右上角加号。
+        用绿色不只是好看——任务卡片是橘的，聊天里两种颜色一眼分得清"这是加好友还是派活"。
+      </p>
+      <p>
+        体积：两张一共 54KB（用了 PNG Up filter，比不压缩省了一半）。分享图在卡片里只显示 100×80，
+        再大也是浪费。
+      </p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

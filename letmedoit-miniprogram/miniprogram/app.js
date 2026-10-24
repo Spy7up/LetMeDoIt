@@ -97,11 +97,16 @@ App({
     return auth.getProfile().then((user) => this.setUser(user))
   },
 
-  /** 登录失败时统一跳到登录页 */
-  redirectToLogin() {
+  /**
+   * 跳登录页
+   *
+   * @param {string} route 登录完成后要回到哪里（含参数）。不传就回当前页面 ——
+   *        分享卡片进来时必须显式传，因为 getCurrentPages() 只有 route，拿不到 query
+   */
+  redirectToLogin(route) {
     const pages = getCurrentPages()
     const current = pages[pages.length - 1]
-    const redirect = current ? current.route : 'pages/tasks/index/index'
+    const redirect = route || (current ? current.route : 'pages/tasks/index/index')
     wx.reLaunch({ url: '/pages/launch/index?redirect=' + encodeURIComponent(redirect) })
   },
 })

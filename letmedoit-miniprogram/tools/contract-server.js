@@ -79,6 +79,19 @@ const P = { PENDING: 0, ACCEPTED: 1, DONE: 2, REJECTED: 3, SKIPPED: 4 }
 const MODE = { ANY: 1, ALL: 2 }
 const ROLE = { ASSIGNEE: 1, CREATOR: 2 }
 
+/**
+ * 催办权限（和 sa-app 的 TaskQueryService.canRemind 对齐）
+ * 委托人随时能催；执行者要已接下、且还有别人没做完 —— 单人任务没对象就不给按钮
+ */
+function canRemindOf(task, mine, isCreator, active) {
+  if (!active) return false
+  if (isCreator) return true
+  if (!mine || (mine.status !== P.ACCEPTED && mine.status !== P.DONE)) return false
+  return task.participants.some(
+    (p) => p.memberId !== mine.memberId && (p.status === P.PENDING || p.status === P.ACCEPTED)
+  )
+}
+
 const TASK_DESC = ['预约中', '待接受', '进行中', '已完成', '已拒绝', '已撤回']
 const P_DESC = ['待接受', '已接受', '已完成', '已拒绝', '已跳过']
 const MODE_DESC = ['', '任一人完成', '全员完成']
@@ -93,7 +106,7 @@ function seed() {
   const members = [
     { memberId: 1, nickname: '小林', avatar: '', inviteCode: 'K7M2QX' },
     { memberId: 2, nickname: '妈妈', avatar: '', inviteCode: 'M3P8LA' },
-    { memberId: 3, nickname: '小王', avatar: '', inviteCode: 'W9Q4TZ' },
+    { memberId: 3, nickname: '小王', avatar: 'https://cdn.test/avatar/wang.png', inviteCode: 'W9Q4TZ' },
     { memberId: 4, nickname: '阿哲', avatar: '', inviteCode: 'Z2N6YB' },
     { memberId: 5, nickname: '陈陈', avatar: '', inviteCode: 'C5R1KD' },
     { memberId: 6, nickname: '老李', avatar: '', inviteCode: 'L8H3PW' },
@@ -291,6 +304,9 @@ const NOTICE_TITLES = {
   TASK_EDITED: '任务变更通知',
   TASK_CANCELLED: '任务取消通知',
   TASK_COMPLETED: '任务完成通知',
+  TASK_ACCEPTED: '任务被接受',
+  TASK_REJECTED: '任务被拒绝',
+  TASK_OVERDUE: '任务已逾期',
   TASK_ALL_DONE: '全员完成通知',
 }
 
@@ -453,7 +469,7 @@ function detailVO(task, me) {
     canReject: !!mine && mine.status === P.PENDING && active,
     canComplete: !!mine && mine.status === P.ACCEPTED && active,
     canCancel: isCreator && cancellable,
-    canRemind: isCreator && active,
+    canRemind: canRemindOf(task, mine, isCreator, active),
     canAddParticipant:
       isCreator && (task.status === TASK.PENDING || task.status === TASK.SCHEDULED) && ps.length < 10,
     // 预约中/待接受不限次数；进行中只给一次
@@ -794,6 +810,15 @@ route('POST', /^\/api\/task\/accept$/, ({ me, body }) => {
   p.status = P.ACCEPTED
   bump(task)
   pushEvent(task, me, 2, '接受', '接受了任务')
+  // 委托人收到一条站内通知（和 sa-app 的 notifyAccepted 对齐）
+  if (task.creatorId !== Number(me)) {
+    pushNotices(task, [task.creatorId], 'TASK_ACCEPTED', [
+      { label: '任务名称', value: task.title },
+      { label: '受理人', value: memberOf(me).nickname },
+      { label: '接受时间', value: fmtTime(Date.now()) },
+      { label: '截止时间', value: fmtTime(task.deadline) },
+    ])
+  }
   return ok(detailVO(task, me))
 })
 
@@ -809,6 +834,15 @@ route('POST', /^\/api\/task\/reject$/, ({ me, body }) => {
   p.rejectReason = reason.slice(0, 100)
   bump(task)
   pushEvent(task, me, 4, '拒绝', '拒绝了任务：' + reason)
+  // 拒绝要委托人立刻处理，站内优先送达
+  if (task.creatorId !== Number(me)) {
+    pushNotices(task, [task.creatorId], 'TASK_REJECTED', [
+      { label: '任务名称', value: task.title },
+      { label: '拒绝人', value: memberOf(me).nickname },
+      { label: '拒绝时间', value: fmtTime(Date.now()) },
+      { label: '理由', value: reason },
+    ])
+  }
   return ok(detailVO(task, me))
 })
 
@@ -883,7 +917,15 @@ route('POST', /^\/api\/task\/cancel$/, ({ me, body }) => {
 route('POST', /^\/api\/task\/remind$/, ({ me, body }) => {
   const task = state.tasks.find((t) => t.taskId === Number(body.taskId))
   if (!task) return fail(ERR.NOT_EXIST, '任务不存在')
-  if (task.creatorId !== Number(me)) return fail(ERR.NO_PERMISSION, '只有布置的人能操作')
+  const mine = participantOf(task, me)
+  const isCreator = task.creatorId === Number(me)
+  // 执行者也能催，但得先接下任务（和 sa-app 的放宽规则一致）
+  if (!isCreator) {
+    if (!mine) return fail(ERR.NO_PERMISSION, '你不在这个任务里')
+    if (mine.status !== P.ACCEPTED && mine.status !== P.DONE) {
+      return fail(ERR.NO_PERMISSION, '先接下任务才能催别人')
+    }
+  }
   if (task.status !== TASK.PENDING && task.status !== TASK.IN_PROGRESS) {
     return fail(ERR.REPEAT, '这个任务不用催了')
   }
@@ -891,7 +933,9 @@ route('POST', /^\/api\/task\/remind$/, ({ me, body }) => {
   if (Date.now() - last < 60 * 1000) return fail(ERR.REPEAT, '刚催过啦，TA 马上就看得到')
   state.remindAt[task.taskId] = Date.now()
 
-  const waiting = task.participants.filter((p) => p.status !== P.DONE && p.status !== P.SKIPPED)
+  const waiting = task.participants.filter(
+    (p) => p.memberId !== Number(me) && p.status !== P.DONE && p.status !== P.SKIPPED
+  )
   pushEvent(task, me, 7, '提醒', '提醒了 ' + waiting.length + ' 人')
   pushNotices(task, waiting.map((p) => p.memberId), 'TASK_REMIND', [
     { label: '任务名称', value: task.title },
@@ -982,7 +1026,23 @@ route('POST', /^\/api\/friend\/request\/reject$/, ({ me, body }) => handleReques
 
 route('GET', /^\/api\/friend\/invite$/, ({ me }) => {
   const m = memberOf(me)
-  return ok({ inviteCode: m.inviteCode, sharePath: '/pages/launch/index?invite=' + m.inviteCode })
+  return ok({ inviteCode: m.inviteCode, sharePath: '/pages/friends/invite/index?code=' + m.inviteCode })
+})
+
+// 邀请码预览：点开分享卡片的人看「谁邀请我」
+route('GET', /^\/api\/friend\/invite\/([\w]+)$/, ({ me, params }) => {
+  const code = String(params[0] || '').toUpperCase()
+  const target = state.members.find((m) => m.inviteCode === code)
+  if (!target) return fail(ERR.NOT_EXIST, '邀请码不存在或已失效')
+  const self = target.memberId === Number(me)
+  return ok({
+    inviteCode: code,
+    memberId: target.memberId,
+    nickname: target.nickname,
+    avatar: target.avatar,
+    selfFlag: self,
+    friendFlag: !self && isFriend(me, target.memberId),
+  })
 })
 
 route('POST', /^\/api\/friend\/invite\/accept$/, ({ me, body }) => {
@@ -1065,7 +1125,8 @@ route('POST', /^\/api\/notice\/read$/, ({ me, body }) => {
  */
 route('GET', /^\/api\/subscribe\/list$/, () =>
   ok(
-    ['TASK_ASSIGNED', 'TASK_REMIND', 'TASK_COMPLETED', 'TASK_ALL_DONE'].map((templateKey) => ({
+    // 和 sa-app 对齐：接受/拒绝/完成/逾期共用 TASK_STATUS 一个微信模板
+    ['TASK_ASSIGNED', 'TASK_REMIND', 'TASK_STATUS', 'TASK_ALL_DONE'].map((templateKey) => ({
       templateKey,
       templateId: '',
       configured: false,

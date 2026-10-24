@@ -100,15 +100,15 @@ public class WxSubscribePusher {
             if (!StringUtils.hasText(templateKey)) {
                 return false;
             }
-            // 只有标了 wechat 的通知才走微信，其余三种只在站内展示
+            // 只有标了 wechat 的通知才走微信；接受/拒绝/完成/逾期共用 TASK_STATUS 一个模板
             NoticeTemplateEnum templateEnum = NoticeTemplateEnum.getByKey(templateKey);
             if (templateEnum == null || !templateEnum.isWechat()) {
                 return false;
             }
-            WxProperties.SubscribeTemplate template = wxProperties.getTemplate(templateKey);
+            WxProperties.SubscribeTemplate template = wxProperties.getTemplate(templateEnum.wxKey());
             if (template == null) {
                 // 模板还没审核通过 / 没配 id：正常状态，不打堆日志
-                log.debug("订阅模板 {} 未配置，跳过微信投递", templateKey);
+                log.debug("订阅模板 {} 未配置，跳过微信投递, noticeKey={}", templateEnum.wxKey(), templateKey);
                 return false;
             }
             Map<String, String> data = buildData(template, notice);

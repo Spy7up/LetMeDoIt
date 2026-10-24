@@ -40,6 +40,16 @@ function getInvite() {
 }
 
 /**
+ * 邀请码预览（点开分享卡片的人看）
+ * @param {string} code 邀请码
+ * @returns {Promise<{inviteCode, memberId, nickname, avatar, selfFlag, friendFlag}>}
+ */
+function invitePreview(code) {
+  const value = String(code || '').trim().toUpperCase()
+  return http.get('/api/friend/invite/' + encodeURIComponent(value))
+}
+
+/**
  * 输入邀请码加好友（双向直接建立关系，不需要对方确认）
  * @returns {Promise<{message:string}>} 后端返回的是文案，如「已加上 妈妈」
  */
@@ -60,6 +70,7 @@ module.exports = {
   acceptRequest,
   rejectRequest,
   getInvite,
+  invitePreview,
   acceptInviteCode,
   remove,
 }

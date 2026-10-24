@@ -1,0 +1,70 @@
+<view class="recv">
+  <!-- 加载 / 出错 -->
+  <view class="recv-center" wx:if="{{loading}}">
+    <text class="recv-loading">加载中…</text>
+  </view>
+  <view class="recv-center" wx:elif="{{error}}">
+    <text class="recv-err">{{error}}</text>
+    <view class="fbtn fbtn-ghost recv-retry" bindtap="bootstrap">重试</view>
+  </view>
+
+  <block wx:elif="{{task}}">
+    <!-- 谁托你做 -->
+    <view class="recv-head">
+      <user-avatar user="{{task.creator}}" size="56" />
+      <text class="recv-from">{{task.creator.nickname}} 托你做这件事</text>
+      <text class="recv-hint">{{hint}}</text>
+    </view>
+
+    <!-- 做什么 -->
+    <text class="recv-title">{{task.title}}</text>
+
+    <!-- 什么时候要 -->
+    <view class="recv-due">
+      <text class="recv-due-k">什么时候要</text>
+      <text class="recv-due-v">{{task.deadlineText}}</text>
+    </view>
+
+    <!-- 交代 + 参考图 -->
+    <view class="recv-note" wx:if="{{task.description || task.shotCount}}">
+      <text class="recv-note-k">{{task.creator.nickname}} 说</text>
+      <text class="recv-note-v" wx:if="{{task.description}}">{{task.description}}</text>
+      <view class="recv-shots" wx:if="{{task.shotCount}}">
+        <image
+          class="recv-shot"
+          wx:for="{{task.shots}}"
+          wx:key="*this"
+          src="{{item}}"
+          mode="aspectFill"
+          data-index="{{index}}"
+          bindtap="previewShot"
+        />
+      </view>
+    </view>
+
+    <view class="recv-more" wx:if="{{scene === 'accepted' || scene === 'done'}}" bindtap="goFull">
+      看完整详情 ›
+    </view>
+
+    <view class="actionbar-float-space"></view>
+  </block>
+
+  <!-- 底部悬浮毛玻璃：只保留这一个动作组 -->
+  <view class="actionbar-float" wx:if="{{scene === 'pending'}}">
+    <view class="fbtn fbtn-ghost" style="flex:0 0 40%" bindtap="onReject">
+      <image class="fbtn-icon" src="/images/icons/close-ink.png" />
+      <text>拒绝</text>
+    </view>
+    <view class="fbtn fbtn-primary" bindtap="onAccept">
+      <image class="fbtn-icon" src="/images/icons/check-white.png" />
+      <text>{{acting ? '处理中…' : '接受'}}</text>
+    </view>
+  </view>
+
+  <view class="actionbar-float" wx:elif="{{scene === 'accepted'}}">
+    <view class="fbtn fbtn-mint" bindtap="goComplete">
+      <image class="fbtn-icon" src="/images/icons/check-white.png" />
+      <text>完成我这份</text>
+    </view>
+  </view>
+</view>

@@ -5,11 +5,13 @@
     "pages/onboarding/index",
     "pages/tasks/create/index",
     "pages/tasks/detail/index",
+    "pages/tasks/receive/index",
     "pages/tasks/complete/index",
     "pages/tasks/participants/index",
     "pages/messages/index/index",
     "pages/friends/index/index",
     "pages/friends/detail/index",
+    "pages/friends/invite/index",
     "pages/mine/index/index",
     "pages/mine/profile/index",
     "pages/mine/settings/index"

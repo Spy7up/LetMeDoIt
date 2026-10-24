@@ -4,6 +4,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import net.lab1024.sa.app.module.member.domain.entity.WxMemberEntity;
 import net.lab1024.sa.app.module.member.service.WxMemberService;
+import net.lab1024.sa.app.module.notice.constant.NoticeTemplateEnum;
 import net.lab1024.sa.app.module.task.constant.TaskStatusEnum;
 import net.lab1024.sa.app.module.task.dao.TaskDao;
 import net.lab1024.sa.app.module.task.dao.TaskParticipantDao;
@@ -48,6 +49,14 @@ public class TaskScheduleJob implements SmartJob {
      * 单轮最多处理多少条，避免一次拉起太多
      */
     private static final int BATCH_SIZE = 100;
+
+    /**
+     * 逾期扫描的时间窗口（小时）
+     * <p>
+     * 只处理这么长时间内逾期的任务：既保证及时，也避免首次上线时
+     * 把历史老任务一次性全部补发通知。
+     */
+    private static final int OVERDUE_WINDOW_HOURS = 24;
 
     @Resource
     private TaskDao taskDao;
@@ -101,7 +110,8 @@ public class TaskScheduleJob implements SmartJob {
     public String run(String param) {
         int activated = activateScheduledTasks();
         int reminded = sendDueReminders();
-        String result = "预约生效 " + activated + " 条，到期提醒 " + reminded + " 条";
+        int overdue = sendOverdueNotices();
+        String result = "预约生效 " + activated + " 条，到期提醒 " + reminded + " 条，逾期提醒 " + overdue + " 条";
         log.info("TaskScheduleJob 执行完成：{}", result);
         return result;
     }
@@ -193,6 +203,53 @@ public class TaskScheduleJob implements SmartJob {
                 taskDao.updateRemind(task.getTaskId(), null, null, now);
             } catch (Exception e) {
                 log.error("任务提醒下发失败, taskId={}", task.getTaskId(), e);
+            }
+        }
+        return sent;
+    }
+
+    /**
+     * 逾期提醒：过了截止时间但还没结束，通知委托人
+     * <p>
+     * 两个必须的约束：
+     * 1. <b>每个任务只发一次</b> —— 作业每分钟跑一轮，不判重的话创建者会被刷屏；
+     * 2. <b>只扫最近 24 小时逾期的</b> —— 否则第一次上线会把半年前的老任务一次性补发一遍。
+     *
+     * @return 下发条数
+     */
+    private int sendOverdueNotices() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime since = now.minusHours(OVERDUE_WINDOW_HOURS);
+        List<TaskEntity> tasks = taskDao.queryOverdueList(since, now,
+                TaskStatusEnum.IN_PROGRESS.getValue(), Boolean.FALSE, BATCH_SIZE);
+        if (CollectionUtils.isEmpty(tasks)) {
+            return 0;
+        }
+
+        List<Long> taskIds = tasks.stream().map(TaskEntity::getTaskId).collect(Collectors.toList());
+        Map<Long, List<TaskParticipantEntity>> participantMap = taskParticipantDao
+                .queryEntityByTaskIds(taskIds, Boolean.FALSE)
+                .stream()
+                .collect(Collectors.groupingBy(TaskParticipantEntity::getTaskId));
+
+        int sent = 0;
+        for (TaskEntity task : tasks) {
+            try {
+                if (taskNoticeService.hasNotified(task.getTaskId(), NoticeTemplateEnum.TASK_OVERDUE)) {
+                    continue;
+                }
+                long waiting = participantMap.getOrDefault(task.getTaskId(), List.of())
+                        .stream()
+                        .filter(p -> TaskManager.ACTIONABLE_PARTICIPANT_STATUS.contains(p.getStatus()))
+                        .count();
+                // 其实都做完了、只是聚合状态还没翻，不该报逾期
+                if (waiting <= 0) {
+                    continue;
+                }
+                taskNoticeService.notifyOverdue(task, (int) waiting);
+                sent++;
+            } catch (Exception e) {
+                log.error("逾期通知下发失败, taskId={}", task.getTaskId(), e);
             }
         }
         return sent;

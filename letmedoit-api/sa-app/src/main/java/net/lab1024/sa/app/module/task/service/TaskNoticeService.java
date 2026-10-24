@@ -1,6 +1,7 @@
 package net.lab1024.sa.app.module.task.service;
 
 import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.annotation.Resource;
 import net.lab1024.sa.app.module.dict.constant.AppDictCode;
 import net.lab1024.sa.app.module.dict.service.AppDictService;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -172,6 +174,77 @@ public class TaskNoticeService {
                 new NoticeVO.Field("提示", "委托人撤回了这条任务，不用再做了")
         );
         insertBatch(memberIds, task.getTaskId(), NoticeTemplateEnum.TASK_CANCELLED, fields);
+    }
+
+    /**
+     * 有人接受了任务：通知委托人
+     * <p>
+     * 这是纯信息类通知（优先级最低），额度紧张时最先被丢掉；
+     * 微信侧和拒绝/完成/逾期共用 TASK_STATUS 一个模板，靠 phrase 区分状态。
+     *
+     * @param task       任务
+     * @param memberName 接受人昵称
+     * @param creatorId  委托人
+     */
+    public void notifyAccepted(TaskEntity task, String memberName, Long creatorId) {
+        if (creatorId == null) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("受理人", memberName),
+                new NoticeVO.Field("接受时间", formatTime(LocalDateTime.now())),
+                new NoticeVO.Field("截止时间", formatTime(task.getDeadline()))
+        );
+        insertBatch(Arrays.asList(creatorId), task.getTaskId(), NoticeTemplateEnum.TASK_ACCEPTED, fields);
+    }
+
+    /**
+     * 有人拒绝了任务：通知委托人（带理由 —— 这是需要立刻处理的事，优先级最高）
+     */
+    public void notifyRejected(TaskEntity task, String memberName, Long creatorId, String reason) {
+        if (creatorId == null) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("拒绝人", memberName),
+                new NoticeVO.Field("拒绝时间", formatTime(LocalDateTime.now())),
+                new NoticeVO.Field("理由", StringUtils.hasText(reason) ? reason : "没说理由")
+        );
+        insertBatch(Arrays.asList(creatorId), task.getTaskId(), NoticeTemplateEnum.TASK_REJECTED, fields);
+    }
+
+    /**
+     * 任务逾期：通知委托人
+     * <p>
+     * 每个任务只发一次 —— 调用前先用 {@link #hasNotified} 判重，
+     * 否则定时作业每分钟跑一轮，创建者会被刷屏。
+     */
+    public void notifyOverdue(TaskEntity task, int waitingCount) {
+        if (task.getCreatorId() == null) {
+            return;
+        }
+        List<NoticeVO.Field> fields = Arrays.asList(
+                new NoticeVO.Field("任务名称", task.getTitle()),
+                new NoticeVO.Field("截止时间", formatTime(task.getDeadline())),
+                new NoticeVO.Field("还没做完", waitingCount + " 人"),
+                new NoticeVO.Field("提示", "已经过了截止时间，去催一下？")
+        );
+        insertBatch(Arrays.asList(task.getCreatorId()), task.getTaskId(), NoticeTemplateEnum.TASK_OVERDUE, fields);
+    }
+
+    /**
+     * 这条任务是否已经发过某类通知
+     */
+    public boolean hasNotified(Long taskId, NoticeTemplateEnum template) {
+        if (taskId == null || template == null) {
+            return false;
+        }
+        LambdaQueryWrapper<NoticeEntity> query = new LambdaQueryWrapper<>();
+        query.eq(NoticeEntity::getTaskId, taskId)
+                .eq(NoticeEntity::getTemplateKey, template.getKey());
+        return noticeDao.selectCount(query) > 0;
     }
 
     private void insertBatch(List<Long> memberIds, Long taskId, NoticeTemplateEnum template, List<NoticeVO.Field> fields) {

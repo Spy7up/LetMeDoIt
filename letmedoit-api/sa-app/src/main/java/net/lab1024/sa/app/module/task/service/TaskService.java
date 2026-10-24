@@ -254,6 +254,11 @@ public class TaskService {
             return ResponseDTO.userErrorParam("任务已经不在可接受状态");
         }
         taskManager.accept(task, mine, "接受了任务");
+        // 让委托人知道有人接了：站内消息必达；微信卡片走 TASK_STATUS，额度不够时会静默发不出去
+        if (!Objects.equals(memberId, task.getCreatorId())) {
+            taskNoticeService.notifyAccepted(task, displayNameOf(wxMemberService.getById(memberId)),
+                    task.getCreatorId());
+        }
         return ResponseDTO.ok(taskQueryService.detail(taskDao.queryById(taskId, Boolean.FALSE), memberId));
     }
 
@@ -273,6 +278,11 @@ public class TaskService {
             return ResponseDTO.userErrorParam("你已经处理过了");
         }
         taskManager.reject(task, mine, form.getReason(), "拒绝了任务：" + form.getReason());
+        // 拒绝是要委托人立刻处理的事，站内优先送达
+        if (!Objects.equals(memberId, task.getCreatorId())) {
+            taskNoticeService.notifyRejected(task, displayNameOf(wxMemberService.getById(memberId)),
+                    task.getCreatorId(), form.getReason());
+        }
         log.info("任务被拒绝, taskId={}, memberId={}", task.getTaskId(), memberId);
         return ResponseDTO.ok(taskQueryService.detail(taskDao.queryById(task.getTaskId(), Boolean.FALSE), memberId));
     }
@@ -338,8 +348,17 @@ public class TaskService {
         if (task == null) {
             return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST, "任务不存在或已被删除");
         }
-        if (!Objects.equals(task.getCreatorId(), memberId)) {
-            return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "只有布置的人能催");
+        boolean creator = Objects.equals(task.getCreatorId(), memberId);
+        if (!creator) {
+            // 执行者也能催：催的是「除自己之外还没做完的人」（多人任务里互相催一催）
+            TaskParticipantEntity mine = taskParticipantDao.queryByTaskAndMember(taskId, memberId, Boolean.FALSE);
+            if (mine == null) {
+                return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "你不在这个任务里");
+            }
+            if (!ParticipantStatusEnum.ACCEPTED.getValue().equals(mine.getStatus())
+                    && !ParticipantStatusEnum.COMPLETED.getValue().equals(mine.getStatus())) {
+                return ResponseDTO.error(UserErrorCode.NO_PERMISSION, "先接下任务才能催别人");
+            }
         }
         if (!TaskManager.ACTIONABLE_TASK_STATUS.contains(task.getStatus())) {
             return ResponseDTO.userErrorParam("这个任务不用催了");

@@ -45,16 +45,23 @@ module.exports = {
     ],
   },
 
-  TASK_COMPLETED: {
+  /**
+   * 任务进展通知（创建者收）
+   *
+   * 「有人接受 / 拒绝 / 完成 / 逾期」四种状态共用这一个微信模板，
+   * 靠 phrase2 区分。一次性订阅是按模板分别记额度的，合并成一个模板后，
+   * 创建者只需授权 1 次就能覆盖全部状态，而不是为每种状态各授权一次。
+   */
+  TASK_STATUS: {
     templateId: '', // 待：模板审批通过后填入
-    title: '任务完成通知',
-    desc: '有人完成了任务（多人任务下为「有人完成了自己那份」）',
-    keywords: ['thing1', 'thing2', 'time3', 'thing4'],
+    title: '任务进展通知',
+    desc: '有人接受 / 拒绝 / 完成，或者任务逾期了',
+    keywords: ['thing1', 'phrase2', 'thing3', 'time4'],
     fields: [
       { key: 'thing1', label: '任务名称' },
-      { key: 'thing2', label: '完成人' },
-      { key: 'time3', label: '完成时间' },
-      { key: 'thing4', label: '完成进度' },
+      { key: 'phrase2', label: '进展状态' },
+      { key: 'thing3', label: '相关的人' },
+      { key: 'time4', label: '时间' },
     ],
   },
 

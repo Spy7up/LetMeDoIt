@@ -306,10 +306,38 @@ public class TaskQueryService {
         detail.setCanReject(pendingMine && taskActive);
         detail.setCanComplete(acceptedMine && taskActive);
         detail.setCanCancel(creator && cancellable);
-        detail.setCanRemind(creator && taskActive);
+        detail.setCanRemind(canRemind(detail, me, creator, taskActive, acceptedMine));
         detail.setCanAddParticipant(creator && notStarted && detail.getTotalCount() < TaskManager.MAX_PARTICIPANT);
         // 预约中/待接受不限次数；进行中只给一次
         detail.setCanEdit(creator && TaskManager.canEdit(task));
+    }
+
+    /**
+     * 能不能催办
+     * <p>
+     * 委托人随时能催；执行者也能催，但前提是已经接下任务、且还有别人没做完 ——
+     * 单人任务没有可催对象，就不给这个按钮，免得点了只收到一句"都做完了"。
+     */
+    private boolean canRemind(TaskDetailVO detail, TaskParticipantVO me,
+                              boolean creator, boolean taskActive, boolean acceptedMine) {
+        if (!taskActive) {
+            return false;
+        }
+        if (creator) {
+            return true;
+        }
+        if (!acceptedMine || me == null || detail.getParticipants() == null) {
+            return false;
+        }
+        for (TaskParticipantVO p : detail.getParticipants()) {
+            if (Objects.equals(p.getMemberId(), me.getMemberId())) {
+                continue;
+            }
+            if (TaskManager.ACTIONABLE_PARTICIPANT_STATUS.contains(p.getStatus())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isOverdue(TaskEntity task) {

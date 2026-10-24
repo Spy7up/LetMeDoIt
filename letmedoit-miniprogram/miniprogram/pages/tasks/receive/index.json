@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "有人托你做",
+  "usingComponents": {
+    "user-avatar": "/components/user-avatar/index"
+  }
+}

@@ -220,4 +220,36 @@
     <text class="hint" wx:if="{{editing}}">改完会通知已经在做的人</text>
     <text class="hint" wx:else>发布时会请求一次消息提醒授权，拒绝也不影响使用</text>
   </view>
+
+  <!-- 发布成功：给一次「告诉 TA」的机会。
+       订阅消息要对方点「允许」才收得到，转发卡片是必达的，所以这里主推转发。 -->
+  <view class="pub-mask" wx:if="{{published}}">
+    <view class="pub-sheet">
+      <view class="pub-grab"></view>
+      <text class="pub-title">发出去了</text>
+      <text class="pub-sub">再跟 TA 说一声，比等通知靠谱</text>
+      <text class="pub-sub">微信服务通知要点一次「允许」才收得到</text>
+
+      <view class="pub-task">
+        <view class="stack">
+          <user-avatar
+            wx:for="{{participants}}"
+            wx:key="id"
+            wx:if="{{index < 4}}"
+            user="{{item}}"
+            size="32"
+            ring="{{true}}"
+            overlap="{{index > 0}}"
+          />
+        </view>
+        <view class="pub-task-t">
+          <text class="pub-task-name">{{published.title}}</text>
+          <text class="pub-task-time">{{published.dueText}} · {{published.count}} 人</text>
+        </view>
+      </view>
+
+      <button class="btn btn-primary btn-lg" open-type="share">发给 TA</button>
+      <view class="pub-skip" bindtap="closePublished">先不用，TA 打开小程序能看到</view>
+    </view>
+  </view>
 </view>

@@ -169,12 +169,15 @@ public class WxSubscribeService {
             return ResponseDTO.error(UserErrorCode.LOGIN_STATE_INVALID);
         }
         List<SubscribeQuotaVO> list = new ArrayList<>();
-        for (NoticeTemplateEnum templateEnum : NoticeTemplateEnum.wechatList()) {
+        // 按去重后的微信模板出（4 个）：接受/拒绝/完成/逾期共用 TASK_STATUS，
+        // 如果按站内通知逐个出，设置页会显示 4 行相同额度，用户会以为有 4 份额度
+        for (String templateKey : NoticeTemplateEnum.wechatTemplateKeys()) {
+            NoticeTemplateEnum templateEnum = NoticeTemplateEnum.ofTemplateKey(templateKey);
             SubscribeQuotaVO vo = new SubscribeQuotaVO();
-            vo.setTemplateKey(templateEnum.getKey());
-            vo.setTitle(templateEnum.getTitle());
+            vo.setTemplateKey(templateKey);
+            vo.setTitle(templateEnum == null ? templateKey : templateEnum.getTitle());
 
-            WxProperties.SubscribeTemplate template = wxProperties.getTemplate(templateEnum.getKey());
+            WxProperties.SubscribeTemplate template = wxProperties.getTemplate(templateKey);
             if (template == null) {
                 // 模板还没审核通过：前端置灰，提示「审核中」
                 vo.setConfigured(false);
