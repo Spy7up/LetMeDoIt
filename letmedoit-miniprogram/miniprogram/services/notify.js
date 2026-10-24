@@ -50,7 +50,7 @@ function report(key) {
  *    一旦中途有 await（或放在 showModal 的回调里），微信会报
  *    requestSubscribeMessage:fail can only be invoked by user TAP gesture。
  *
- * @param {string[]} keys 例如 ['TASK_COMPLETED','TASK_REMIND']，微信一次最多 3 个
+ * @param {string[]} keys 例如 ['TASK_STATUS','TASK_REMIND']，微信一次最多 3 个
  * @returns {Promise<{accepted:string[], raw:object, skipped?:boolean}>}
  */
 function requestSubscribe(keys) {

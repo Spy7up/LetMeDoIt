@@ -141,26 +141,7 @@ button {
   gap: 28rpx;
 }
 
-.bell-wrap {
-  position: relative;
-  padding: 8rpx;
-}
-
-.bell-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  min-width: 28rpx;
-  height: 28rpx;
-  padding: 0 6rpx;
-  border-radius: 999rpx;
-  background: var(--danger);
-  color: #fff;
-  font-size: 20rpx;
-  line-height: 28rpx;
-  text-align: center;
-  border: 3rpx solid var(--bg);
-}
+/* 通知入口已挪到右下角悬浮球（.notice-fab），导航栏不再放图标 */
 
 /* ---------------- 毛玻璃 banner ---------------- */
 
@@ -654,6 +635,44 @@ button.btn {
   justify-content: center;
   box-shadow: 0 16rpx 40rpx rgba(255, 107, 74, 0.42);
   z-index: 10;
+}
+
+/* 通知悬浮球：和主操作同一个尺寸、同一竖列，但用白底 ——
+   主操作是「布置任务」，通知是次要入口，不能抢视觉。 */
+.notice-fab {
+  position: fixed;
+  right: 36rpx;
+  bottom: calc(296rpx + env(safe-area-inset-bottom));
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: #fff;
+  border: 1rpx solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 32rpx rgba(60, 40, 20, 0.16);
+  z-index: 10;
+}
+
+/* 未读数：用 box-shadow 描一圈页面底色，而不是 border，
+   否则会挤压数字的可用高度、两位数就显示不全 */
+.notice-badge {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 9rpx;
+  box-sizing: border-box;
+  border-radius: 18rpx;
+  background: var(--danger);
+  color: #fff;
+  font-size: 21rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+  text-align: center;
+  box-shadow: 0 0 0 4rpx var(--bg);
 }
 
 /* 悬浮 tabBar 占位：tab 页内容末尾留出的空间 */
@@ -1219,6 +1238,122 @@ button.btn {
 
 .actionbar-space {
   height: calc(150rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------------- 悬浮毛玻璃操作条 ----------------
+   详情页/接收页的操作不再贴边平铺，改成浮在内容之上的胶囊：
+   按钮更大更明显，滚动时也不会和正文糊在一起。
+   不支持 backdrop-filter 的机型退化成接近不透明的白，可读性优先。 */
+
+.actionbar-float {
+  position: fixed;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: calc(28rpx + env(safe-area-inset-bottom));
+  padding: 14rpx;
+  border-radius: 44rpx;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(28rpx) saturate(180%);
+  -webkit-backdrop-filter: blur(28rpx) saturate(180%);
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16rpx 48rpx rgba(60, 40, 25, 0.18), 0 2rpx 8rpx rgba(60, 40, 25, 0.05);
+  display: flex;
+  gap: 14rpx;
+  z-index: 20;
+}
+
+/* 胶囊里的按钮：比普通 .btn 更高、字更大，才谈得上「明显」。
+   每个动作都有自己的主题色，不再一律白底 —— 白底在毛玻璃上会和背景糊成一片。 */
+.fbtn {
+  flex: 1;
+  height: 92rpx;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+
+.fbtn-icon {
+  width: 32rpx;
+  height: 32rpx;
+  flex: 0 0 auto;
+}
+
+/* 分享：品牌浅底 + 品牌色字 */
+.fbtn-share {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+/* 编辑：紫色浅底，和分享拉开区分 */
+.fbtn-edit {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+
+/* 撤回：红色浅底（破坏性但不刺眼） */
+.fbtn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* 拒绝：中性灰，主操作要留给「接受」 */
+.fbtn-ghost {
+  background: #f1ede8;
+  color: var(--ink2);
+}
+
+/* 接受：品牌实心 */
+.fbtn-primary {
+  background: linear-gradient(135deg, #ff7a58, #ff5a34);
+  color: #fff;
+  box-shadow: 0 10rpx 26rpx -8rpx rgba(255, 107, 74, 0.9);
+}
+
+.fbtn-primary.disabled {
+  background: var(--line2);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* 完成：薄荷实心，和「接受」区分开（一个是承诺，一个是交付） */
+.fbtn-mint {
+  background: linear-gradient(135deg, #2ec093, #17a67c);
+  color: #fff;
+  box-shadow: 0 10rpx 26rpx -8rpx rgba(23, 166, 124, 0.8);
+}
+
+/* 催一下：琥珀实心 */
+.fbtn-amber {
+  background: linear-gradient(135deg, #f5a623, #e08a00);
+  color: #fff;
+  box-shadow: 0 10rpx 26rpx -8rpx rgba(224, 138, 0, 0.8);
+}
+
+/* button 复用 .fbtn：微信转发只能挂 button，要把默认样式清干净 */
+button.fbtn {
+  line-height: 92rpx;
+  font-size: 28rpx;
+  border: none;
+}
+
+button.fbtn::after {
+  border: none;
+}
+
+/* button 里的 image 不受 line-height 影响，但要把默认的 inline 间隙去掉 */
+button.fbtn .fbtn-icon {
+  display: block;
+}
+
+.actionbar-float-space {
+  height: calc(190rpx + env(safe-area-inset-bottom));
 }
 
 /* ---------------- 服务通知（与微信同构） ---------------- */

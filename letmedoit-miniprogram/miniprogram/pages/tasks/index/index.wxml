@@ -7,12 +7,6 @@
         <image class="brand-logo" src="/images/logo.png" mode="aspectFill" />
         <view class="wordmark">让我做<view class="dot"></view></view>
       </view>
-      <view class="nav-right">
-        <view class="bell-wrap" bindtap="goMessages">
-          <image class="ic-md" src="/images/icons/bell-ink.png" />
-          <view class="bell-badge" wx:if="{{unread > 0}}">{{unread > 99 ? '99+' : unread}}</view>
-        </view>
-      </view>
     </view>
   </view>
 
@@ -191,6 +185,12 @@
       <text class="empty-sub">{{empty.sub}}</text>
       <view class="btn btn-ghost empty-btn" bindtap="emptyAction">{{empty.action}}</view>
     </view>
+  </view>
+
+  <!-- 通知进消息中心：和「布置任务」同一套悬浮球，未读数挂在右上角 -->
+  <view class="notice-fab" bindtap="goMessages">
+    <image class="ic-md" src="/images/icons/bell-ink.png" />
+    <view class="notice-badge" wx:if="{{unread > 0}}">{{unread > 99 ? '99+' : unread}}</view>
   </view>
 
   <view class="fab" bindtap="goCreate">

@@ -148,4 +148,23 @@ public interface TaskDao extends BaseMapper<TaskEntity> {
     List<TaskEntity> queryRemindList(@Param("now") LocalDateTime now,
                                      @Param("deletedFlag") Boolean deletedFlag,
                                      @Param("limit") Integer limit);
+
+    /**
+     * 查询已过截止时间但还没结束的任务（逾期通知扫描）
+     * <p>
+     * 只扫最近一段时间内逾期的，避免上线时把半年前的老任务一次性补发一遍。
+     * 是否已经通知过由调用方按 t_task_notice 判重。
+     *
+     * @param since       只处理这个时间之后截止的（now - 窗口）
+     * @param now         当前时间
+     * @param status      任务状态（进行中）
+     * @param deletedFlag 删除标识
+     * @param limit       批量上限
+     * @return 任务列表
+     */
+    List<TaskEntity> queryOverdueList(@Param("since") LocalDateTime since,
+                                      @Param("now") LocalDateTime now,
+                                      @Param("status") Integer status,
+                                      @Param("deletedFlag") Boolean deletedFlag,
+                                      @Param("limit") Integer limit);
 }

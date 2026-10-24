@@ -1,21 +1,20 @@
 const taskApi = require('../../../services/task')
 const notifyApi = require('../../../services/notify')
+const entry = require('../../../utils/entry')
 const { presentDetail } = require('../../../utils/present')
 
 /** 详情 + 底部操作条模式（accept / complete / creator / none） */
 function withBar(d) {
   const p = presentDetail(d)
   p.meId = (d.me && d.me.userId) || ''
-  // 撤回已挪到标题右侧，底部只按「能不能催 / 能不能加人」决定
+  // 撤回已挪到底部悬浮条，这里只决定底部显示哪一组
   p.barMode =
     d.me && d.me.canAccept
       ? 'accept'
       : d.me && d.me.canComplete
       ? 'complete'
-      : d.canRemind
+      : d.isCreator
       ? 'creator'
-      : d.canAddParticipant
-      ? 'addonly'
       : 'none'
   return p
 }
@@ -26,11 +25,12 @@ Page({
     loading: true,
     error: '',
     acting: '',
-    fromShare: false,
   },
 
   onLoad(options) {
     this.taskId = options.id || ''
+    // 旧版分享卡片仍然会落到这个页面（新卡片走 receive 页），所以同样记下完整路径
+    this.route = entry.routeOf('pages/tasks/detail/index', options)
     if (!this.taskId) {
       this.setData({ loading: false, error: '缺少任务 id' })
       return
@@ -43,12 +43,8 @@ Page({
   },
 
   async bootstrap() {
-    try {
-      await getApp().ensureLogin()
-    } catch (e) {
-      getApp().redirectToLogin()
-      return
-    }
+    // 没登录过就从分享卡片进来了：先登录 + 补头像昵称，回来再加载
+    if (await entry.ensureEntry(this.route)) return
     this.ready = true
     this.load()
   },
@@ -194,9 +190,17 @@ Page({
 
   onShareAppMessage() {
     const t = this.data.task
+    if (!t) {
+      return { title: '让我做 · 别人让你做的小事，说一遍就够', path: '/pages/tasks/index/index' }
+    }
+    // 转发走「接收页」而不是详情页：点开的人只需要接受/拒绝，不需要看时间线和参与者。
+    // 卡片标题超过 2 行会被微信截断，所以任务名先按 12 字收一下。
+    const short = t.title.length > 12 ? t.title.slice(0, 12) + '…' : t.title
     return {
-      title: t ? t.creator.nickname + ' 让你做：' + t.title : '让我做',
-      path: '/pages/tasks/detail/index?id=' + this.taskId,
+      title: t.creator.nickname + ' 让你做：' + short + ' · ' + t.deadlineText,
+      path: '/pages/tasks/receive/index?id=' + this.taskId,
+      // 有任务附图就用第一张当封面；没有就用默认封面（留空微信用页面截图，很丑）
+      imageUrl: (t.allShots && t.allShots[0]) || '/images/share/task-cover.png',
     }
   },
 })

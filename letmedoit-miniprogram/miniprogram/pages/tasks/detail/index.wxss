@@ -237,3 +237,41 @@
   font-size: 20rpx;
   color: var(--ink3);
 }
+
+/* ---------------- 只读态 ---------------- */
+
+/* 被转发到群里、点进来的路人：只读，给一条明确解释 */
+.stranger-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 40rpx 24rpx;
+  margin-bottom: 26rpx;
+}
+
+.sn-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--ink2);
+}
+
+.sn-sub {
+  font-size: 22rpx;
+  color: var(--ink3);
+  text-align: center;
+}
+
+/* 区块标题右侧的小操作（催一下 / 加人）：主操作都在底部悬浮条里 */
+.blabel-ops {
+  margin-left: auto;
+  display: flex;
+  gap: 8rpx;
+}
+
+.bl-op {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--brand-ink);
+  padding: 4rpx 10rpx;
+}

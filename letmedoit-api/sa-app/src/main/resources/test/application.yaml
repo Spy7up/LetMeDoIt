@@ -37,10 +37,12 @@ wx:
         id: ${WX_TPL_TASK_REMIND:}
         page: pages/tasks/detail/index
         keywords: [thing1, time2, thing3]
-      TASK_COMPLETED:
-        id: ${WX_TPL_TASK_COMPLETED:}
+      # 接受 / 拒绝 / 完成 / 逾期 共用这一个模板，靠 phrase2 区分状态。
+      # 一次性订阅按模板分别记额度，合并后创建者只需授权 1 次就能覆盖全部状态。
+      TASK_STATUS:
+        id: ${WX_TPL_TASK_STATUS:}
         page: pages/tasks/detail/index
-        keywords: [thing1, thing2, time3, thing4]
+        keywords: [thing1, phrase2, thing3, time4]
       TASK_ALL_DONE:
         id: ${WX_TPL_TASK_ALL_DONE:}
         page: pages/tasks/detail/index

@@ -1,4 +1,5 @@
 const friendApi = require('../../../services/friend')
+const entry = require('../../../utils/entry')
 const { presentUser } = require('../../../utils/present')
 const { formatRelative } = require('../../../utils/format')
 
@@ -26,12 +27,7 @@ Page({
   },
 
   async bootstrap() {
-    try {
-      await getApp().ensureLogin()
-    } catch (e) {
-      getApp().redirectToLogin()
-      return
-    }
+    if (await entry.ensureEntry('pages/friends/index/index')) return
     this.ready = true
     this.load()
   },
@@ -47,6 +43,8 @@ Page({
       this.setData({
         friends: friends.map((f) =>
           Object.assign(presentUser({ id: f.userId, nickname: f.remark || f.nickname, avatarUrl: f.avatarUrl }), {
+            // presentUser 只透传 id，这里补上 userId，避免下游误用成 undefined
+            userId: f.userId,
             friendId: f.id,
             rawName: f.nickname,
             remark: f.remark,
@@ -134,9 +132,13 @@ Page({
   },
 
   onShareAppMessage() {
+    // 走「加好友页」而不是登录页：对方点开能先看清是谁邀请他，再决定加不加。
+    // 封面用薄荷绿那张，和任务卡片的橘色区分开，聊天里一眼能认出来。
+    const code = this.data.inviteCode || ''
     return {
       title: '加我一起用「让我做」，省得忘事',
-      path: this.data.sharePath || '/pages/tasks/index/index',
+      path: code ? '/pages/friends/invite/index?code=' + code : '/pages/tasks/index/index',
+      imageUrl: '/images/share/friend-cover.png',
     }
   },
 

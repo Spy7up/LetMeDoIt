@@ -131,6 +131,8 @@ Page({
     submitting: false,
     canSubmit: false,
     today: '',
+    // 发布成功后的「告诉 TA」半屏；有值就显示，不用另开页面
+    published: null,
     // 附图：选完立刻传，state = uploading / done / failed
     shots: [],
     maxImages: MAX_IMAGES,
@@ -487,8 +489,10 @@ Page({
     this.setData({ submitting: true })
 
     try {
-      // 发布时顺带攒一次订阅额度，用户拒绝也不影响发布
-      await notifyApi.requestSubscribe(['TASK_ALL_DONE', 'TASK_REMIND'])
+      // 发布时攒一次订阅额度，用户拒绝也不影响发布。
+      // 创建者最关心「他们接了没 / 做完没」：TASK_STATUS 一个模板覆盖接受/拒绝/完成/逾期四种状态，
+      // 加上 TASK_ALL_DONE 正好 2 个，微信一次最多 3 个，不用弹第二次。
+      await notifyApi.requestSubscribe(['TASK_STATUS', 'TASK_ALL_DONE'])
 
       const remindMinutes = opt ? opt.minutes || 0 : 0
       if (this.data.editing) {
@@ -514,7 +518,7 @@ Page({
         return
       }
 
-      await taskApi.create({
+      const created = await taskApi.create({
         title,
         description: this.data.description,
         images: this.imageUrls(),
@@ -527,11 +531,69 @@ Page({
       })
 
       getApp().globalData.needRefresh = true
-      wx.showToast({ title: '已交给 TA，等回复', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 700)
+      // 新建成功：不急着返回，先给一次「告诉 TA」的机会。
+      // 订阅消息要用户点「允许」才收得到，而转发卡片是必达的，这条路径更靠谱。
+      this.setData({
+        submitting: false,
+        published: {
+          taskId: (created && created.id) || '',
+          title,
+          count: this.data.selectedIds.length,
+          dueText: isWholeDay ? this.data.dayText + ' 做完就行' : this.data.deadlineText + ' 前',
+          cover: this.imageUrls()[0] || '',
+        },
+      })
     } catch (e) {
       wx.showToast({ title: e.message || '发布失败', icon: 'none' })
       this.setData({ submitting: false })
+    }
+  },
+
+  /**
+   * 从微信转发面板回来
+   * <p>
+   * 微信没有"转发成功"的回调，只能借 onShow 这个时机离开弹层：
+   * 不管用户是真发了还是取消了，都不该再卡在「发出去了」这一屏上。
+   */
+  onShow() {
+    if (this._shared && this.data.published) {
+      this._shared = false
+      this.leavePublished()
+    }
+  },
+
+  /** 半屏里点「先不用」：直接去任务详情，看一眼自己刚发的单子 */
+  closePublished() {
+    this.leavePublished()
+  },
+
+  leavePublished() {
+    const p = this.data.published
+    if (!p || !p.taskId) {
+      wx.navigateBack()
+      return
+    }
+    // redirectTo：create 页在栈里没有保留价值，换成详情页，返回直接回列表
+    wx.redirectTo({ url: '/pages/tasks/detail/index?id=' + p.taskId })
+  },
+
+  /** 转发给好友：卡片落到「接收页」，对方只需要接受或拒绝 */
+  onShareAppMessage() {
+    const p = this.data.published
+    if (!p) {
+      return { title: '让我做 · 别人让你做的小事，说一遍就够', path: '/pages/tasks/index/index' }
+    }
+    this._shared = true
+    const me = (getApp().globalData.user && getApp().globalData.user.nickname) || '有人'
+    // 卡片标题超过 2 行会被微信截断，任务名先按 12 字收一下
+    const short = p.title.length > 12 ? p.title.slice(0, 12) + '…' : p.title
+    return {
+      title: me + ' 让你做：' + short + ' · ' + p.dueText,
+      // 走「接收页」：对方点开只需要接受或拒绝，不该被时间线和参与者列表淹没
+      path: '/pages/tasks/receive/index?id=' + p.taskId,
+      // 有任务附图就用第一张当封面；没有就用设计好的默认封面（别留空，
+      // 留空微信用页面截图，白底一片很丑）
+      imageUrl: p.cover || '/images/share/task-cover.png',
     }
   },
 })

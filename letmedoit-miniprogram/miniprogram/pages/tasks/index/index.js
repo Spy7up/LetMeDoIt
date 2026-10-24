@@ -1,6 +1,7 @@
 const taskApi = require('../../../services/task')
 const notifyApi = require('../../../services/notify')
 const noticeApi = require('../../../services/notice')
+const entry = require('../../../utils/entry')
 const { STATUS_FILTERS, TIME_RANGES } = require('../../../constants/task')
 const { presentTask, presentUser } = require('../../../utils/present')
 
@@ -60,12 +61,9 @@ Page({
   },
 
   async bootstrap() {
-    try {
-      await getApp().ensureLogin()
-    } catch (e) {
-      getApp().redirectToLogin()
-      return
-    }
+    // 第一次用（本地没 token）先去登录 + 补头像昵称，回来再加载。
+    // 以前这里是静默登录，结果新用户直接被注册成「用户XXXX」，引导页永远走不到。
+    if (await entry.ensureEntry('pages/tasks/index/index')) return
     this.ready = true
     await this.reload()
     this.loadSummary()

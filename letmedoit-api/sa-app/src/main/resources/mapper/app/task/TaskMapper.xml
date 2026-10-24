@@ -200,6 +200,21 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 已过截止时间但还没结束的任务：逾期通知扫描。
+         只扫最近一个窗口内逾期的，避免上线时把老任务一次性补发；
+         是否已通知过由 Java 侧查 t_task_notice 判重（每任务只发一次）。 -->
+    <select id="queryOverdueList" resultType="net.lab1024.sa.app.module.task.domain.entity.TaskEntity">
+        SELECT
+        <include refid="baseColumns"/>
+        FROM t_task
+        WHERE deleted_flag = #{deletedFlag}
+        AND status = #{status}
+        AND deadline &lt; #{now}
+        AND deadline &gt;= #{since}
+        ORDER BY deadline ASC
+        LIMIT #{limit}
+    </select>
+
     <!-- 清空开始时间点：关掉「开始时间点」时用，status 由上层重算 -->
     <update id="clearStartTime">
         UPDATE t_task

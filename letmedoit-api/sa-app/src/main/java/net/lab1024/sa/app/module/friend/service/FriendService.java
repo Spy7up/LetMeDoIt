@@ -10,6 +10,7 @@ import net.lab1024.sa.app.module.friend.domain.entity.FriendRequestEntity;
 import net.lab1024.sa.app.module.friend.domain.form.FriendInviteAcceptForm;
 import net.lab1024.sa.app.module.friend.domain.form.FriendRemoveForm;
 import net.lab1024.sa.app.module.friend.domain.form.FriendRequestAddForm;
+import net.lab1024.sa.app.module.friend.domain.vo.FriendInvitePreviewVO;
 import net.lab1024.sa.app.module.friend.domain.vo.FriendInviteVO;
 import net.lab1024.sa.app.module.friend.domain.vo.FriendRequestVO;
 import net.lab1024.sa.app.module.friend.domain.vo.FriendVO;
@@ -149,6 +150,28 @@ public class FriendService {
         FriendInviteVO vo = new FriendInviteVO();
         vo.setInviteCode(member.getInviteCode());
         vo.setSharePath(INVITE_SHARE_PATH + member.getInviteCode());
+        return ResponseDTO.ok(vo);
+    }
+
+    /**
+     * 邀请码预览：分享卡片点进来的人，先看清「谁邀请我」再决定加不加
+     * <p>
+     * 只返回昵称、头像和两个判定位，不暴露对方的好友数/任务数。
+     */
+    public ResponseDTO<FriendInvitePreviewVO> invitePreview(String inviteCode, Long memberId) {
+        WxMemberEntity target = wxMemberService.getByInviteCode(inviteCode);
+        if (target == null) {
+            return ResponseDTO.error(UserErrorCode.DATA_NOT_EXIST, "邀请码不存在或已失效");
+        }
+        FriendInvitePreviewVO vo = new FriendInvitePreviewVO();
+        vo.setInviteCode(inviteCode);
+        vo.setMemberId(target.getMemberId());
+        vo.setNickname(target.getNickname());
+        vo.setAvatar(target.getAvatar());
+        boolean self = Objects.equals(target.getMemberId(), memberId);
+        vo.setSelfFlag(self);
+        vo.setFriendFlag(!self
+                && friendDao.queryByMemberAndFriend(memberId, target.getMemberId(), Boolean.FALSE) != null);
         return ResponseDTO.ok(vo);
     }
 

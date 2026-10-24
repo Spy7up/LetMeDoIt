@@ -1,0 +1,47 @@
+<view class="inv">
+  <view class="inv-center" wx:if="{{loading}}">
+    <text class="inv-muted">加载中…</text>
+  </view>
+
+  <view class="inv-center" wx:elif="{{error}}">
+    <text class="inv-err">{{error}}</text>
+    <view class="fbtn fbtn-ghost inv-retry" bindtap="bootstrap">重试</view>
+  </view>
+
+  <block wx:elif="{{preview}}">
+    <!-- 谁邀请你 -->
+    <view class="inv-head">
+      <user-avatar user="{{preview}}" size="56" />
+      <text class="inv-from">{{preview.nickname}} 想加你为好友</text>
+      <text class="inv-hint">
+        {{preview.friendFlag ? '你们已经是好友了' : '加上之后，可以互相派活、互相提醒'}}
+      </text>
+    </view>
+
+    <!-- 邀请码：面对面加、或者手动输入时用得上 -->
+    <view class="inv-card">
+      <text class="inv-card-k">邀请码</text>
+      <text class="inv-card-v">{{preview.inviteCode}}</text>
+    </view>
+
+    <!-- 一句话说明这是个什么东西 -->
+    <view class="inv-about">
+      <text class="inv-about-t">「让我做」是给家人朋友派小事的小程序</text>
+      <text class="inv-about-s">说一遍就够，做完自动通知你</text>
+    </view>
+
+    <view class="actionbar-float-space"></view>
+  </block>
+
+  <!-- 底部悬浮毛玻璃 -->
+  <view class="actionbar-float" wx:if="{{preview}}">
+    <view wx:if="{{preview.friendFlag}}" class="fbtn fbtn-ghost" bindtap="goFriends">
+      <image class="fbtn-icon" src="/images/icons/users-ink.png" />
+      <text>去看看好友</text>
+    </view>
+    <view wx:else class="fbtn fbtn-primary {{joined ? 'disabled' : ''}}" bindtap="onAdd">
+      <image class="fbtn-icon" src="/images/icons/plus-white.png" />
+      <text>{{joined ? '已加上' : acting ? '加好友…' : '加为好友'}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,147 @@
+/* 接收页：一个动作、四件事，视觉上刻意比详情页「空」 */
+
+.recv {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 0 40rpx;
+}
+
+/* ---------------- 加载 / 出错 ---------------- */
+
+.recv-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28rpx;
+  min-height: 62vh;
+}
+
+.recv-loading {
+  font-size: 26rpx;
+  color: var(--ink3);
+}
+
+.recv-err {
+  font-size: 26rpx;
+  color: var(--ink2);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.recv-retry {
+  flex: 0 0 auto;
+  height: 76rpx;
+  padding: 0 44rpx;
+  border-radius: 999rpx;
+}
+
+/* ---------------- 头部：谁托你做 ---------------- */
+
+.recv-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 72rpx 0 44rpx;
+}
+
+.recv-from {
+  margin-top: 6rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ink1);
+}
+
+.recv-hint {
+  font-size: 23rpx;
+  color: var(--ink3);
+  text-align: center;
+  line-height: 1.55;
+  padding: 0 20rpx;
+}
+
+/* ---------------- 做什么 ---------------- */
+
+.recv-title {
+  display: block;
+  font-size: 46rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.5rpx;
+  color: var(--ink1);
+}
+
+/* ---------------- 什么时候要 ---------------- */
+
+.recv-due {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 24rpx;
+  padding: 20rpx 26rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #fff3ee, #ffe7de);
+  border: 1rpx solid #ffd8ca;
+}
+
+.recv-due-k {
+  font-size: 22rpx;
+  color: #b26a50;
+  flex: 0 0 auto;
+}
+
+.recv-due-v {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+
+/* ---------------- 交代 ---------------- */
+
+.recv-note {
+  margin-top: 28rpx;
+  padding: 26rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  border: 1rpx solid var(--line);
+}
+
+.recv-note-k {
+  display: block;
+  font-size: 21rpx;
+  font-weight: 600;
+  color: var(--ink3);
+  margin-bottom: 10rpx;
+}
+
+.recv-note-v {
+  display: block;
+  font-size: 27rpx;
+  line-height: 1.7;
+  color: var(--ink1);
+}
+
+.recv-shots {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.recv-shot {
+  width: 176rpx;
+  height: 176rpx;
+  border-radius: 16rpx;
+  background: var(--line2);
+  flex: 0 0 auto;
+}
+
+/* ---------------- 次要入口 ---------------- */
+
+.recv-more {
+  margin-top: 40rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--ink3);
+  padding: 12rpx 0;
+}

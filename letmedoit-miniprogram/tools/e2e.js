@@ -205,6 +205,15 @@ async function run() {
     'displayName 回退昵称：' + (grannyInKid && grannyInKid.displayName)
   )
 
+  // 邀请码预览：点开分享卡片的人要先看清「谁邀请我」，再决定加不加
+  const kidPreview = await friendSvc.invitePreview(invite.inviteCode)
+  check(kidPreview.selfFlag === false, '别人查邀请码 → selfFlag=false')
+  check(kidPreview.friendFlag === true, '已是好友 → friendFlag=true')
+  check(!!kidPreview.nickname, '预览带邀请人昵称：' + kidPreview.nickname)
+  await as('granny', '奶奶')
+  const ownPreview = await friendSvc.invitePreview(invite.inviteCode)
+  check(ownPreview.selfFlag === true, '自己查自己的邀请码 → selfFlag=true')
+
   section('[3] 好友申请 → 同意（双向）')
   const third = await as('third', '表姐')
   const reqs = await friendSvc.listRequests()
@@ -330,6 +339,13 @@ async function run() {
   check(fromCreator.canEdit === true, '进行中还能再改一次 canEdit=true（改完即锁）')
   check(fromCreator.canRemind === true, '可催办 canRemind=true')
 
+  // 小明刚接受了任务 → 委托人应该收到一条站内通知（微信卡片走 TASK_STATUS，额度不够时不发）
+  const grannyNotices = await api('notice').list({ limit: 20 })
+  const acceptNotice = grannyNotices.list.find(
+    (n) => String(n.taskId) === String(taskId) && /接受/.test(n.title || '')
+  )
+  check(!!acceptNotice, '委托人收到「任务被接受」通知：' + (acceptNotice && acceptNotice.title))
+
   const reminded = await taskSvc.remind(taskId)
   check(!!reminded && reminded.id === taskId, '催办成功，返回最新详情')
   let limited = false
@@ -415,6 +431,53 @@ async function run() {
   check(meSlot && meSlot.status === 'rejected', '拒绝后我的格子 = ' + (meSlot && meSlot.status))
   check(meSlot && meSlot.rejectReason === '今晚不在家', '拒绝理由落库')
   check(rejected.status === 'rejected', '单人拒绝时任务聚合状态 = ' + rejected.status)
+
+  // 小明拒绝了 → 表姐（委托人）收到带理由的站内通知
+  await as('third', '表姐')
+  const rejectNotice = (await api('notice').list({ limit: 20 })).list.find(
+    (n) => String(n.taskId) === String(t2.id) && /拒绝/.test(n.title || '')
+  )
+  check(!!rejectNotice, '委托人收到「任务被拒绝」通知：' + (rejectNotice && rejectNotice.title))
+  check(
+    !!rejectNotice && rejectNotice.fields.some((f) => /今晚不在家/.test(f.value || '')),
+    '拒绝理由进了通知：' + (rejectNotice && JSON.stringify(rejectNotice.fields))
+  )
+
+  section('[11.5] 执行者催办：多人可催队友，单人没对象就不给按钮')
+  // 这里的 fmtAt 在后面才定义，先用 pad 拼一个
+  const dueAt = (h) => {
+    const d = new Date(Date.now() + h * 3600 * 1000)
+    return (
+      d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'
+    )
+  }
+  await as('granny', '奶奶')
+  const remindT = await taskSvc.create({
+    title: '联调-执行者催办',
+    participantIds: [kid.id, third.id],
+    completionMode: 'all',
+    deadline: dueAt(6),
+    remindMinutes: 0,
+  })
+  await as('kid', '小明')
+  await taskSvc.accept(remindT.id)
+  const kidViewAfter = await taskSvc.detail(remindT.id)
+  check(kidViewAfter.canRemind === true, '执行者接下后 canRemind=true（表姐还没动）')
+  const kidRemind = await taskSvc.remind(remindT.id)
+  check(!!kidRemind && kidRemind.id === remindT.id, '执行者可以催还没接受的人')
+
+  const soloT = await taskSvc.create({
+    title: '联调-单人无催办',
+    participantIds: [third.id],
+    completionMode: 'all',
+    deadline: dueAt(6),
+    remindMinutes: 0,
+  })
+  await as('third', '表姐')
+  await taskSvc.accept(soloT.id)
+  const soloView = await taskSvc.detail(soloT.id)
+  check(soloView.canRemind === false, '单人任务 canRemind=false（没有别人可催）')
 
   section('[12] 撤回')
   await as('third', '表姐')

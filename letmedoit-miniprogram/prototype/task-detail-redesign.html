@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任务详情页重设计 · 悬浮毛玻璃 + 接收页拆分</title>
+<style>
+  :root {
+    --brand: #FF6B4A;
+    --brand-ink: #D64C28;
+    --brand-soft: #FFEDE7;
+    --mint: #17A67C;
+    --mint-soft: #E4F6EF;
+    --amber: #E08A00;
+    --amber-soft: #FDF3E2;
+    --violet: #6B5BD2;
+    --violet-soft: #EFECFC;
+    --danger: #D64545;
+    --danger-soft: #FCEBEB;
+    --ink1: #1E1B18;
+    --ink2: #6B625B;
+    --ink3: #A69C93;
+    --line: #EFE9E3;
+    --line2: #E6DFD8;
+    --bg: #F7F4F1;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #EDE8E3;
+    color: var(--ink1);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  header.page-head { margin-bottom: 44px; }
+  .kicker {
+    display: inline-block; padding: 6px 12px; border-radius: 999px;
+    background: var(--brand-soft); color: var(--brand-ink);
+    font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  }
+  header.page-head h1 { margin: 14px 0 8px; font-size: 26px; font-weight: 700; letter-spacing: -.3px; }
+  header.page-head p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--ink2); max-width: 840px; }
+
+  section { margin-bottom: 56px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .sec-no {
+    font-size: 12px; font-weight: 700; color: #fff; background: var(--ink1);
+    width: 20px; height: 20px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto; transform: translateY(-2px);
+  }
+  .sec-head h2 { margin: 0; font-size: 19px; font-weight: 700; }
+  .sec-sub { margin: 0 0 22px; font-size: 13.5px; line-height: 1.7; color: var(--ink2); max-width: 860px; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; justify-content: center; }
+  .col { flex: 0 1 375px; max-width: 375px; }
+  .col figcaption { margin-top: 12px; font-size: 12.5px; line-height: 1.6; color: var(--ink2); text-align: center; }
+  .cap-tag {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 700; margin-right: 6px; vertical-align: 1px;
+  }
+  .cap-good { background: var(--mint-soft); color: var(--mint); }
+  .cap-info { background: var(--violet-soft); color: var(--violet); }
+  .cap-new { background: var(--brand-soft); color: var(--brand-ink); }
+
+  /* ---------- 手机框 ---------- */
+  .phone {
+    position: relative;
+    width: 375px; height: 620px;
+    background: var(--bg); border-radius: 28px; overflow: hidden;
+    box-shadow: 0 18px 40px -18px rgba(60,40,25,.28), 0 2px 8px rgba(60,40,25,.08);
+    border: 1px solid rgba(0,0,0,.05);
+  }
+  .statusbar {
+    height: 30px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 18px; font-size: 10.5px; font-weight: 600;
+  }
+  .statusbar .dots { display: flex; gap: 3px; align-items: center; }
+  .statusbar .dots i { display: block; width: 3px; height: 3px; border-radius: 50%; background: var(--ink1); }
+  .nav {
+    display: flex; align-items: center; gap: 8px; padding: 4px 16px 12px;
+    font-size: 15px; font-weight: 600;
+  }
+  .nav .back {
+    width: 16px; height: 16px; border-left: 2px solid var(--ink1);
+    border-bottom: 2px solid var(--ink1); transform: rotate(45deg);
+    border-radius: 1px; opacity: .85;
+  }
+  .screen {
+    padding: 0 16px;
+    height: calc(100% - 66px);
+    overflow-y: auto;
+    /* 留得刻意比悬浮条矮一点：滚到底时内容能透到毛玻璃下面 */
+    padding-bottom: 70px;
+  }
+  .screen::-webkit-scrollbar { width: 0; }
+
+  /* 滚动内容尾部的留白，让毛玻璃有东西可以透出来 */
+  .fill {
+    margin-top: 10px; padding: 14px; border-radius: 16px;
+    background: #fff; border: 1px solid var(--line);
+    font-size: 12.5px; line-height: 1.7; color: var(--ink2);
+  }
+
+  /* ---------- 悬浮毛玻璃操作条 ---------- */
+  .actionbar-float {
+    position: absolute;
+    left: 14px; right: 14px; bottom: 14px;
+    padding: 7px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.72);
+    box-shadow: 0 16px 40px -8px rgba(60,40,25,0.22), 0 2px 6px rgba(60,40,25,0.06);
+    display: flex;
+    gap: 7px;
+  }
+  .fbtn {
+    flex: 1;
+    height: 46px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 5px;
+    font-size: 14px; font-weight: 600; line-height: 1;
+    border: none; margin: 0; padding: 0;
+    font-family: inherit;
+  }
+  .fbtn-icon { width: 16px; height: 16px; flex: 0 0 auto; }
+
+  .fbtn-share { background: var(--brand-soft); color: var(--brand-ink); }
+  .fbtn-edit { background: var(--violet-soft); color: var(--violet); }
+  .fbtn-danger { background: var(--danger-soft); color: var(--danger); }
+  .fbtn-ghost { background: #f1ede8; color: var(--ink2); }
+
+  .fbtn-primary {
+    background: linear-gradient(135deg, #ff7a58, #ff5a34);
+    color: #fff;
+    box-shadow: 0 6px 16px -6px rgba(255,107,74,.9);
+  }
+  .fbtn-mint {
+    background: linear-gradient(135deg, #2ec093, #17a67c);
+    color: #fff;
+    box-shadow: 0 6px 16px -6px rgba(23,166,124,.8);
+  }
+  .fbtn-amber {
+    background: linear-gradient(135deg, #f5a623, #e08a00);
+    color: #fff;
+    box-shadow: 0 6px 16px -6px rgba(224,138,0,.8);
+  }
+
+  /* ---------- 详情页组件 ---------- */
+  .tag {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+  }
+  .t-pending { background: var(--amber-soft); color: var(--amber); }
+  .t-progress { background: var(--brand-soft); color: var(--brand-ink); }
+  .t-done { background: var(--mint-soft); color: var(--mint); }
+
+  .hero-title {
+    display: block; margin: 12px 0 6px;
+    font-size: 25px; font-weight: 700; line-height: 1.3; letter-spacing: -.4px;
+  }
+  .byline {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 11.5px; color: var(--ink3);
+  }
+  .av {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex: 0 0 auto;
+  }
+  .av-a { background: #FFE0D4; color: #C0492A; }
+  .av-b { background: #DDEBFB; color: #3C6E9E; }
+  .av-c { background: #DFEEDB; color: #4C7A45; }
+
+  .block {
+    background: #fff; border-radius: 16px; padding: 13px;
+    margin-top: 12px; border: 1px solid var(--line);
+  }
+  .blabel {
+    display: flex; align-items: center;
+    font-size: 11px; font-weight: 700; color: var(--ink3);
+    letter-spacing: .3px; margin-bottom: 8px;
+  }
+  .blabel-ops { margin-left: auto; display: flex; gap: 4px; }
+  .bl-op {
+    font-size: 11px; font-weight: 600; color: var(--brand-ink);
+    padding: 2px 5px;
+  }
+  .info-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .k { color: var(--ink3); width: 48px; flex: 0 0 auto; }
+  .info-row .v { color: var(--ink1); font-weight: 500; }
+
+  .p-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; }
+  .p-name { font-size: 13px; font-weight: 500; }
+  .p-sub { font-size: 11px; color: var(--ink2); }
+
+  .tl-item { display: flex; gap: 9px; padding: 5px 0; }
+  .tl-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--line2);
+    margin-top: 6px; flex: 0 0 auto;
+  }
+  .tl-text { font-size: 12px; color: var(--ink2); }
+  .tl-time { display: block; font-size: 10px; color: var(--ink3); margin-top: 1px; }
+
+  /* ---------- 接收页 ---------- */
+  /* .screen 已有 16px，这里补到 20px（= 页面 40rpx 边距） */
+  .recv { padding: 0 4px; }
+  .recv-head {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 36px 0 22px;
+  }
+  .recv-av {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700;
+  }
+  .recv-from { margin-top: 3px; font-size: 15px; font-weight: 600; }
+  .recv-hint { font-size: 11.5px; color: var(--ink3); text-align: center; }
+  .recv-title {
+    display: block; font-size: 23px; font-weight: 700;
+    line-height: 1.35; letter-spacing: -.4px;
+  }
+  .recv-due {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 12px; padding: 10px 13px; border-radius: 12px;
+    background: linear-gradient(135deg, #fff3ee, #ffe7de);
+    border: 1px solid #ffd8ca;
+  }
+  .recv-due-k { font-size: 11px; color: #b26a50; }
+  .recv-due-v { font-size: 15px; font-weight: 700; color: var(--brand-ink); }
+  .recv-note {
+    margin-top: 14px; padding: 13px; background: #fff;
+    border-radius: 14px; border: 1px solid var(--line);
+  }
+  .recv-note-k { display: block; font-size: 10.5px; font-weight: 600; color: var(--ink3); margin-bottom: 5px; }
+  .recv-note-v { display: block; font-size: 13.5px; line-height: 1.7; }
+  .recv-shots { display: flex; gap: 6px; margin-top: 9px; }
+  .recv-shot { width: 88px; height: 88px; border-radius: 8px; }
+  .recv-more { margin-top: 20px; text-align: center; font-size: 12px; color: var(--ink3); }
+  .recv-center {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; height: 70%;
+  }
+  .recv-center .big { font-size: 15px; font-weight: 600; color: var(--ink2); }
+  .recv-center .sub { font-size: 12px; color: var(--ink3); text-align: center; line-height: 1.6; }
+
+  /* ---------- 说明 ---------- */
+  .note {
+    margin-top: 22px; background: #fff; border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px;
+  }
+  .note h3 { margin: 0 0 10px; font-size: 13.5px; font-weight: 700; }
+  .note p { margin: 0 0 10px; font-size: 13px; line-height: 1.75; color: var(--ink2); }
+  .note p:last-child { margin-bottom: 0; }
+  code {
+    font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px;
+    background: #F4EFEA; padding: 1.5px 5px; border-radius: 4px; color: #A34226;
+  }
+  table.tbl {
+    width: 100%; border-collapse: collapse; background: #fff;
+    border-radius: 12px; overflow: hidden; font-size: 13px; margin-top: 16px;
+  }
+  table.tbl th, table.tbl td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.6;
+  }
+  table.tbl th { background: #FAF7F3; font-size: 12px; font-weight: 700; color: var(--ink2); }
+  table.tbl tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-head">
+    <span class="kicker">原型 · 详情页重设计</span>
+    <h1>一个页面拆成两个，按钮全部浮起来</h1>
+    <p>
+      核心变化有两处：<strong>按钮从贴边平铺改成悬浮毛玻璃胶囊</strong>（更大、更明显、不和内容糊在一起）；
+      <strong>分享点开的人走独立的「接收页」</strong>，不再是同一个详情页套个参数 —— 他需要的信息和创建者完全不同。
+    </p>
+  </header>
+
+  <!-- ========== 1. 详情页三种身份 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><h2>任务详情页：按身份给按钮</h2></div>
+    <p class="sec-sub">
+      底部只有一个悬浮胶囊，里面按身份放不同的按钮组合。创建者的「催一下 / 加人」下沉到参与者区块的标题行 ——
+      底部留给真正的动作（分享、编辑、撤回），三个按钮等宽，一眼看清。
+    </p>
+
+    <div class="grid">
+      <!-- 发布人 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>把阳台的衣服收了</span></div>
+          <div class="screen">
+            <span class="tag t-pending">待接受</span>
+            <span class="hero-title">把阳台的衣服收了</span>
+            <div class="byline">
+              <div class="av av-a">晨</div>
+              <span>我布置的 · 2 人一起做</span>
+            </div>
+
+            <div class="block">
+              <div class="info-row"><span class="k">截止</span><span class="v">今天 21:00</span></div>
+              <div class="info-row"><span class="k">完成</span><span class="v">全员完成，各自做完点一下</span></div>
+              <div class="info-row"><span class="k">提醒</span><span class="v">提前 10 分钟</span></div>
+              <div class="info-row"><span class="k">布置</span><span class="v" style="color:var(--ink3)">刚刚</span></div>
+            </div>
+
+            <div class="block">
+              <div class="blabel">
+                <span>参与的人 · 2</span>
+                <div class="blabel-ops">
+                  <span class="bl-op">催一下</span>
+                  <span class="bl-op">加人</span>
+                </div>
+              </div>
+              <div class="p-row">
+                <div class="av av-b">明</div>
+                <div style="flex:1">
+                  <div class="p-name">阿明</div>
+                  <div class="p-sub">还没接受</div>
+                </div>
+                <span class="tag t-pending">待接受</span>
+              </div>
+              <div class="p-row">
+                <div class="av av-c">红</div>
+                <div style="flex:1">
+                  <div class="p-name">小红</div>
+                  <div class="p-sub">还没接受</div>
+                </div>
+                <span class="tag t-pending">待接受</span>
+              </div>
+            </div>
+
+            <div class="fill">
+              白色那筐叠好放我房间，深色的直接挂衣柜。
+            </div>
+          </div>
+
+          <div class="actionbar-float">
+            <button class="fbtn fbtn-share"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1"><path d="M12 15V3M12 3L7 8M12 3l5 5M5 12v8h14v-8"/></svg>分享</button>
+            <button class="fbtn fbtn-edit"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1"><path d="M4 20l1-4 11-11 3 3-11 11-4 1z"/><path d="M14 6l3 3"/></svg>编辑</button>
+            <button class="fbtn fbtn-danger"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>撤回</button>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-new">发布人</span>分享 / 编辑 / 撤回，催办和加人挪到参与者区块</figcaption>
+      </div>
+
+      <!-- 执行者待接受 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>晾衣服</span></div>
+          <div class="screen">
+            <span class="tag t-pending">待接受</span>
+            <span class="hero-title">晾衣服</span>
+            <div class="byline">
+              <div class="av av-a">妈</div>
+              <span>妈妈 布置的 · 1 人</span>
+            </div>
+
+            <div class="block">
+              <div class="info-row"><span class="k">截止</span><span class="v">今天 21:00</span></div>
+              <div class="info-row"><span class="k">提醒</span><span class="v">提前 10 分钟</span></div>
+            </div>
+
+            <div class="block">
+              <div class="blabel">参与的人 · 1</div>
+              <div class="p-row">
+                <div class="av av-a" style="width:32px;height:32px;font-size:12px">我</div>
+                <div style="flex:1">
+                  <div class="p-name">我 <span style="color:var(--ink3);font-weight:400">· 我</span></div>
+                  <div class="p-sub">还没接受</div>
+                </div>
+                <span class="tag t-pending">待接受</span>
+              </div>
+            </div>
+
+            <div class="fill">
+              阳台的衣服，白的别和深色混。
+            </div>
+          </div>
+
+          <div class="actionbar-float">
+            <div class="fbtn fbtn-ghost" style="flex:0 0 40%"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>拒绝</div>
+            <div class="fbtn fbtn-primary"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6"><path d="M4 12.5l5 5L20 6"/></svg>接受</div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-good">执行者</span>待接受：拒绝 / 接受，接受是主操作</figcaption>
+      </div>
+
+      <!-- 执行者进行中 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>晾衣服</span></div>
+          <div class="screen">
+            <span class="tag t-progress">进行中</span>
+            <span class="hero-title">晾衣服</span>
+            <div class="byline">
+              <div class="av av-a">妈</div>
+              <span>妈妈 布置的 · 1 人</span>
+            </div>
+
+            <div class="block">
+              <div class="info-row"><span class="k">截止</span><span class="v">今天 21:00</span></div>
+              <div class="info-row"><span class="k">进度</span><span class="v">0 / 1 已完成</span></div>
+            </div>
+
+            <div class="block">
+              <div class="blabel">进展</div>
+              <div class="tl-item">
+                <div class="tl-dot"></div>
+                <div>
+                  <div class="tl-text">妈妈 布置了任务</div>
+                  <div class="tl-time">今天 15:02</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot"></div>
+                <div>
+                  <div class="tl-text">我 接受了任务</div>
+                  <div class="tl-time">今天 15:08</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="fill">
+              阳台的衣服，白的别和深色混。
+            </div>
+          </div>
+
+          <div class="actionbar-float">
+            <div class="fbtn fbtn-mint"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6"><path d="M4 12.5l5 5L20 6"/></svg>完成我这份</div>
+            <div class="fbtn fbtn-amber"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.1"><path d="M18 9a6 6 0 10-12 0c0 5-2 6-2 6h16s-2-1-2-6"/><path d="M10 21h4"/></svg>催一下</div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-good">执行者</span>进行中：完成我这份 + 催一下</figcaption>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 2. 接收页 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><h2>接收页：分享进来的独立页面</h2></div>
+    <p class="sec-sub">
+      从微信聊天点进来的人，需要的只有四件事：谁让我做、做什么、什么时候要、要不要接。
+      时间线、参与者列表、编辑撤回这些对他是噪音 —— 所以做成<strong>另一个页面</strong>，而不是同一个详情页加参数。
+    </p>
+
+    <div class="grid">
+      <!-- 待接受 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>有人托你做</span></div>
+          <div class="screen">
+            <div class="recv">
+              <div class="recv-head">
+                <div class="recv-av av-a">晨</div>
+                <div class="recv-from">阿晨 托你做这件事</div>
+                <div class="recv-hint">接受后，到期前会提醒你</div>
+              </div>
+
+              <span class="recv-title">把阳台的衣服收了</span>
+
+              <div class="recv-due">
+                <span class="recv-due-k">什么时候要</span>
+                <span class="recv-due-v">今天 21:00</span>
+              </div>
+
+              <div class="recv-note">
+                <span class="recv-note-k">阿晨 说</span>
+                <span class="recv-note-v">白色那筐叠好放我房间，深色的直接挂衣柜。图里标了位置。</span>
+                <div class="recv-shots">
+                  <div class="recv-shot" style="background:linear-gradient(135deg,#CFE3F5,#9EC3E4)"></div>
+                  <div class="recv-shot" style="background:linear-gradient(135deg,#F8DCC8,#F0B58A)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actionbar-float">
+            <div class="fbtn fbtn-ghost" style="flex:0 0 40%"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>拒绝</div>
+            <div class="fbtn fbtn-primary"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6"><path d="M4 12.5l5 5L20 6"/></svg>接受</div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-new">接收页</span>只有四件事 + 一组按钮，比详情页空得多</figcaption>
+      </div>
+
+      <!-- 已接受 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>把阳台的衣服收了</span></div>
+          <div class="screen">
+            <div class="recv">
+              <div class="recv-head">
+                <div class="recv-av av-a">晨</div>
+                <div class="recv-from">阿晨 托你做这件事</div>
+                <div class="recv-hint">你已经接下了，记得在截止前做完</div>
+              </div>
+
+              <span class="recv-title">把阳台的衣服收了</span>
+
+              <div class="recv-due">
+                <span class="recv-due-k">什么时候要</span>
+                <span class="recv-due-v">今天 21:00</span>
+              </div>
+
+              <div class="recv-note">
+                <span class="recv-note-k">阿晨 说</span>
+                <span class="recv-note-v">白色那筐叠好放我房间，深色的直接挂衣柜。</span>
+              </div>
+
+              <div class="recv-more">看完整详情 ›</div>
+            </div>
+          </div>
+
+          <div class="actionbar-float">
+            <div class="fbtn fbtn-mint"><svg class="fbtn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.6"><path d="M4 12.5l5 5L20 6"/></svg>完成我这份</div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-info">已接受</span>按钮换成「完成我这份」，另给一个完整详情入口</figcaption>
+      </div>
+
+      <!-- 不是我 -->
+      <div class="col">
+        <div class="phone">
+          <div class="statusbar"><span>9:41</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="nav"><span class="back"></span><span>有人托你做</span></div>
+          <div class="screen">
+            <div class="recv-center">
+              <div class="recv-av" style="background:#EFE9E3;color:var(--ink3)">？</div>
+              <div class="big">这不是交给你的任务</div>
+              <div class="sub">你可以看看内容，但不能接受或拒绝</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="cap-tag cap-info">兜底</span>转发到群里、路人点进来也要有个体面的交代</figcaption>
+      </div>
+    </div>
+
+    <div class="note">
+      <h3>为什么必须是两个页面，而不是一个页面加参数</h3>
+      <p>
+        一个页面加 <code>?from=share</code> 的话，两件事会互相污染：<br>
+        <strong>1. 布局没法两全</strong> —— 详情页是信息密集型（信息卡 + 描述 + 参与者 + 时间线），
+        接收页是留白型（四件事、大标题）。同一个文件里做两套布局，条件判断会把 WXML 撑成一团。
+      </p>
+      <p>
+        <strong>2. 权限和状态分支会翻倍</strong> —— 详情页要处理「我是创建者 / 我是参与者 / 我是路人」三种，
+        接收页只处理「待我接受 / 我接过了 / 我是路人」。分开后每个页面的分支只有一半。
+      </p>
+      <p>
+        顺带解决了另一个问题：分享出去的卡片以前落在详情页，路人能看到完整的参与者列表和时间线，
+        其实没必要给他看这些。现在他只能看到该看的。
+      </p>
+    </div>
+  </section>
+
+  <!-- ========== 3. 毛玻璃细节 ========== -->
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><h2>悬浮毛玻璃的几处取舍</h2></div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th style="width:150px">项</th><th>取值</th><th style="width:200px">为什么</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>胶囊容器</td>
+          <td class="mono">左右 28rpx、底部 28rpx、圆角 44rpx、内边距 14rpx</td>
+          <td>留出边缘呼吸，不像贴边条那样"压住"内容</td>
+        </tr>
+        <tr>
+          <td>毛玻璃</td>
+          <td class="mono">background rgba(255,255,255,.78)<br>backdrop-filter blur(28rpx) saturate(180%)</td>
+          <td>透出下面的内容但保证文字对比度；saturate 让透出来的橙色不发灰</td>
+        </tr>
+        <tr>
+          <td>不支持时的降级</td>
+          <td class="mono">rgba(255,255,255,.78) 已经接近不透明</td>
+          <td>Android 部分机型不认 backdrop-filter，靠底色兜住可读性</td>
+        </tr>
+        <tr>
+          <td>按钮高度</td>
+          <td class="mono">92rpx（普通 .btn 是 68rpx）</td>
+          <td>「要明显一点」—— 高度和字号一起加，比只加粗有效</td>
+        </tr>
+        <tr>
+          <td>配色</td>
+          <td class="mono">分享=品牌浅底 · 编辑=紫 · 撤回=红 · 拒绝=灰<br>接受=品牌实心 · 完成=薄荷 · 催办=琥珀</td>
+          <td>每个动作一个色。原来一律白底，在毛玻璃上会和背景糊成一片，看着像"按钮没显示"</td>
+        </tr>
+        <tr>
+          <td>图标</td>
+          <td class="mono">16px（32rpx）线性图标，currentColor 跟随文字色</td>
+          <td>彩色底上只放文字辨识慢，带图标一眼认得出</td>
+        </tr>
+        <tr>
+          <td>撤回</td>
+          <td class="mono">浅红底 + 红字，不是实心红</td>
+          <td>破坏性操作要能看见但别太抓眼，避免误触</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <h3>两个实现上的坑</h3>
+      <p>
+        <strong>1. 分享按钮必须是 <code>button</code></strong>：小程序里 <code>&lt;view bindtap&gt;</code> 调不起微信转发面板，
+        只有 <code>&lt;button open-type="share"&gt;</code> 可以。所以要把它重置成和旁边按钮一模一样的外观
+        （<code>::after { border: none }</code> + 清 padding/margin）。
+      </p>
+      <p>
+        <strong>2. 接收页可能在冷启动时直接进入</strong>：从聊天卡片点进来不经过登录页，
+        所以接收页的 <code>onLoad</code> 必须自己 <code>await getApp().ensureLogin()</code>，否则拿不到 token 会白屏。
+      </p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
